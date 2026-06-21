@@ -1,0 +1,48 @@
+appId: com.eggmanpdx.missioncontrol
+productName: Mission Control
+
+directories:
+  output: dist
+  buildResources: assets
+
+files:
+  - out/**/*
+  - node_modules/**/*
+  - package.json
+
+mac:
+  target:
+    - dmg
+    - zip
+  arch:
+    - arm64
+    - x64
+  category: public.app-category.productivity
+  hardenedRuntime: true
+  entitlements: ./entitlements.mac.plist
+  entitlementsInherit: ./entitlements.mac.plist
+
+dmg:
+  contents:
+    - x: 110
+      y: 150
+      type: file
+    - x: 240
+      y: 150
+      type: link
+      path: /Applications
+
+asarUnpack:
+  - '**/*.node'
+
+build:
+  extraMetadata:
+    name: mission-control
+  files:
+    - from: out
+      to: Resources
+    - filter:
+        - '!.eslintrc.cjs'
+        - '!test/**'
+        - '!**/*.test.ts'
+        - '!coverage/**'
