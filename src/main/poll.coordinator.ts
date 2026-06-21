@@ -24,6 +24,16 @@ let _notificationTimerId: NodeJS.Timeout | null = null
 let _mainWindow: BrowserWindow | null = null
 
 /**
+ * Default merge template for poll results
+ */
+const DEFAULT_POLL_RESULT: PollResult = {
+  calendar: [],
+  inbox: { outlookUnread: 0, outlookTopSubjects: [], teamsUnread: null },
+  d8Tasks: [],
+  eggTasks: [],
+}
+
+/**
  * Get the last poll result (cached)
  */
 export function getLastResult(): PollResult | null {
@@ -43,7 +53,7 @@ async function pollGraph(): Promise<void> {
 
     // Merge into last result, preserving other data
     _lastResult = {
-      ...(_lastResult || { calendar: [], inbox: { outlookUnread: 0, outlookTopSubjects: [], teamsUnread: null }, d8Tasks: [], eggTasks: [] }),
+      ...(_lastResult ?? DEFAULT_POLL_RESULT),
       calendar,
       inbox,
     }
@@ -70,7 +80,7 @@ async function pollNotion(): Promise<void> {
 
     // Merge into last result, preserving other data
     _lastResult = {
-      ...(_lastResult || { calendar: [], inbox: { outlookUnread: 0, outlookTopSubjects: [], teamsUnread: null }, d8Tasks: [], eggTasks: [] }),
+      ...(_lastResult ?? DEFAULT_POLL_RESULT),
       d8Tasks,
       eggTasks,
     }
@@ -105,13 +115,21 @@ async function runAllPolls(): Promise<void> {
 }
 
 /**
+ * Handle system resume event
+ */
+function handleResume(): void {
+  console.log('[PollCoordinator] System resumed — running eager poll')
+  runAllPolls().catch((err) => console.error('[PollCoordinator] Uncaught runAllPolls error on resume:', err))
+}
+
+/**
  * Start polling with configured intervals
  * Runs eager poll immediately, then sets up recurring intervals
  */
-export async function startPolling(
-  mainWindow: BrowserWindow,
-  webContents = mainWindow.webContents
-): Promise<void> {
+export async function startPolling(mainWindow: BrowserWindow): Promise<void> {
+  // Clear old timers if re-called (fixes timer leak issue)
+  stopPolling()
+
   _mainWindow = mainWindow
 
   // Run eager poll immediately (don't wait for first interval tick)
@@ -139,10 +157,9 @@ export async function startPolling(
   scheduleMidnightClear()
 
   // Listen for system wake and resume polling
-  powerMonitor.on('resume', () => {
-    console.log('[PollCoordinator] System resumed — running eager poll')
-    runAllPolls().catch((err) => console.error('[PollCoordinator] Uncaught runAllPolls error on resume:', err))
-  })
+  // Remove old listener first to prevent duplicates on re-call
+  powerMonitor.off('resume', handleResume)
+  powerMonitor.on('resume', handleResume)
 
   console.log('[PollCoordinator] Polling started')
 }

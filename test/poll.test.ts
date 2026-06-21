@@ -6,6 +6,7 @@ vi.mock('electron', () => ({
   BrowserWindow: vi.fn(),
   powerMonitor: {
     on: vi.fn(),
+    off: vi.fn(),
   },
 }))
 
