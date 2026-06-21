@@ -15,7 +15,7 @@ const LEAD_TIME_MS = 15 * 60 * 1000 // 15 minutes
 const MIDNIGHT_OFFSET_MS = 5000 // 5 seconds after midnight
 
 // Track fired notifications by "eventId:YYYY-MM-DD"
-let _fired = new Set<string>()
+const _fired = new Set<string>()
 let _midnightTimeout: NodeJS.Timeout | null = null
 
 /**
