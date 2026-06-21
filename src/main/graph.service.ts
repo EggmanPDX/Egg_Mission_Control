@@ -82,10 +82,14 @@ export async function getCalendarEvents(): Promise<CalendarEvent[]> {
 
   const token = await getAccessToken()
 
-  // Fetch events for today
+  // Fetch events for today (using UTC to avoid timezone-related data loss)
   const today = new Date()
-  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-  const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+  const utcYear = today.getUTCFullYear()
+  const utcMonth = today.getUTCMonth()
+  const utcDate = today.getUTCDate()
+
+  const startOfDay = new Date(Date.UTC(utcYear, utcMonth, utcDate, 0, 0, 0))
+  const endOfDay = new Date(Date.UTC(utcYear, utcMonth, utcDate + 1, 0, 0, 0))
 
   const startISO = startOfDay.toISOString()
   const endISO = endOfDay.toISOString()
