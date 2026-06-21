@@ -13,6 +13,7 @@ export function InboxPulse({ panel, flashAuthDot }: InboxPulseProps) {
   const dotState = status.state === 'error' ? 'error'
     : status.state === 'stale' ? 'stale'
     : status.state === 'loading' ? 'loading'
+    : status.state === 'not-configured' ? 'not-configured'
     : 'ok'
 
   const staleLabel = status.state === 'stale'
