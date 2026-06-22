@@ -1,7 +1,9 @@
 node_modules
 dist
+dist-debug
 out
 .env
 .env.local
 *.log
 .DS_Store
+coverage

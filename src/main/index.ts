@@ -53,9 +53,9 @@ function createWindow(): void {
   })
 }
 
-// Register custom protocol for OAuth callback (production)
-if (process.env.NODE_ENV !== 'development') {
-  protocol.registerSchemesAsPrivileged([
+// Register custom protocol for OAuth callback (production, non-mock only)
+if (process.env.NODE_ENV !== 'development' && process.env.MISSION_CONTROL_MOCK !== 'true') {
+  protocol?.registerSchemesAsPrivileged([
     { scheme: 'missioncontrol', privileges: { secure: true, standard: true } },
   ])
 }
