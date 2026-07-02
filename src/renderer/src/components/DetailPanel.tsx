@@ -36,6 +36,7 @@ function itemKey(item: SelectedItem): string {
   if (item.type === 'task') return `task:${item.data.id}`
   if (item.type === 'chat') return `chat:${item.data.chatId}`
   if (item.type === 'job') return `job:${item.data.id}`
+  if (item.type === 'newsletter') return `newsletter:${item.data.name}`
   return `inbox:${item.data.from}:${item.data.subject}`
 }
 
@@ -44,6 +45,7 @@ function panelLabel(item: SelectedItem): string {
   if (item.type === 'task') return 'TASK DETAILS'
   if (item.type === 'chat') return 'MESSAGE DETAILS'
   if (item.type === 'job') return 'JOB DETAILS'
+  if (item.type === 'newsletter') return 'NEWSLETTER'
   return 'MESSAGE DETAILS'
 }
 
@@ -52,6 +54,7 @@ function itemTitle(item: SelectedItem): string {
   if (item.type === 'task') return item.data.title
   if (item.type === 'chat') return item.data.from
   if (item.type === 'job') return item.data.title
+  if (item.type === 'newsletter') return item.data.name
   return item.data.subject
 }
 
@@ -325,6 +328,9 @@ function TypeBadge({ item }: { item: SelectedItem }) {
   if (item.type === 'job') {
     return <span className="text-mc-xs uppercase font-bold tracking-widest px-1.5 py-0.5 rounded-mc-sm text-mc-d8 bg-mc-pill-blue-bg">Job Radar · {item.data.score}/100</span>
   }
+  if (item.type === 'newsletter') {
+    return <span className="text-mc-xs uppercase font-bold tracking-widest text-mc-d8">Newsletter</span>
+  }
   return <span className="text-mc-xs uppercase font-bold tracking-widest text-mc-d8">Email</span>
 }
 
@@ -395,6 +401,40 @@ function ItemDetails({ item }: { item: SelectedItem }) {
         <div className="flex flex-col gap-1 mt-1">
           <span className="text-mc-xs uppercase tracking-widest text-mc-ink-muted font-bold">Why it matched</span>
           <p className="text-mc-sm text-mc-ink-muted italic leading-relaxed">{data.reason}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (item.type === 'newsletter') {
+    const { data } = item
+    const stories = (data.summary ?? '')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => line.replace(/^•\s*/, ''))
+      .map((line) => {
+        const sepIndex = line.indexOf(': ')
+        return sepIndex === -1
+          ? { headline: line, gist: '' }
+          : { headline: line.slice(0, sepIndex), gist: line.slice(sepIndex + 2) }
+      })
+    return (
+      <div className="flex flex-col gap-2.5">
+        {(data.subject || data.sender) && (
+          <Row label="Issue">
+            {data.subject}
+            {data.subject && data.sender && <span className="text-mc-ink-muted"> · {data.sender}</span>}
+            {!data.subject && data.sender}
+          </Row>
+        )}
+        <div className="flex flex-col gap-2.5 mt-1">
+          <span className="text-mc-xs uppercase tracking-widest text-mc-ink-muted font-bold">Stories</span>
+          {stories.map((story, i) => (
+            <div key={i} className="flex flex-col gap-0.5">
+              <span className="text-mc-sm font-semibold text-mc-ink leading-snug">{story.headline}</span>
+              {story.gist && <span className="text-mc-sm text-mc-ink-muted leading-relaxed">{story.gist}</span>}
+            </div>
+          ))}
         </div>
       </div>
     )

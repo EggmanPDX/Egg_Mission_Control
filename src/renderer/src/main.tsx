@@ -43,10 +43,9 @@ if (!window.api) {
     ],
     jobRadarUpdatedAt: new Date(Date.now() - 3 * 60 * 60000).toISOString(),
     newsletters: [
-      { name: 'The Rundown', found: true, subject: "🎉 Anthropic's Fable 5 returns worldwide", sender: 'The Rundown AI <news@daily.therundown.ai>', summary: "• Anthropic restarts Fable 5 globally after US lifts export controls\n• US government now gets pre-release access to future models\n• Amazon researchers' findings prompted the original 18-day shutdown" },
-      { name: 'The Neuron', found: true, subject: '😹 Fable 5 first reviews', sender: 'The Neuron <theneuron@newsletter.theneurondaily.com>', summary: "• Fable 5 relaunched but defaults to Opus 4.8 for coding\n• Meta building out a cloud business to compete in AI infra\n• Together AI raised $800M for open-source AI infrastructure" },
-      { name: 'TLDR', found: false },
-      { name: 'The Code', found: true, subject: '🚀 Cognition ships Devin for Security', sender: 'The Code <superhumancode@news.codenewsletter.ai>', summary: '• Cognition launches Devin for Security, an autonomous vuln-triage agent\n• Anthropic drops Claude Sonnet 5 with major coding gains\n• US companies increasingly adopting Chinese open-source models' },
+      { name: 'The Rundown', found: true, subject: "🎉 Anthropic's Fable 5 returns worldwide", sender: 'The Rundown AI <news@daily.therundown.ai>', summary: "• Anthropic restarts Fable 5: U.S. lifts export controls, model returns with tighter safety filters.\n• Meta preps cloud business: Meta plans to rent spare AI data center compute to outside developers.\n• Google's Design.md standard: New guide pairs Design.md with Claude Code for consistent site design." },
+      { name: 'The Neuron', found: true, subject: '😹 Fable 5 first reviews', sender: 'The Neuron <theneuron@newsletter.theneurondaily.com>', summary: "• Fable 5 relaunch: Anthropic restored Fable 5 after export controls lifted, adding a cybersecurity classifier.\n• Meta cloud ambitions: Meta is reportedly getting serious about launching its own cloud business.\n• Together AI raises $800M: The funding will scale open-model infrastructure for AI developers." },
+      { name: 'The Code', found: true, subject: '🚀 Cognition ships Devin for Security', sender: 'The Code <superhumancode@news.codenewsletter.ai>', summary: '• Cognition ships Devin Security Swarm: Parallel AI agents scan codebases for vulnerabilities and auto-generate patch PRs.\n• Meta reportedly building a cloud compute business: Drafting "Meta Compute" to compete with AWS, GCP, Azure.\n• Claude Sonnet 5\'s "cheaper" pricing is a mirage: New tokenizer makes it cost ~15% more per task than Opus 4.8.' },
     ],
     newslettersUpdatedAt: new Date(Date.now() - 3 * 60 * 60000).toISOString(),
   }

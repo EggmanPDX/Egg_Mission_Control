@@ -1,6 +1,6 @@
 import { PanelHeader } from '../components/PanelHeader'
 import { SkeletonBars } from '../components/SkeletonBars'
-import type { PanelState, NewsletterEntry } from '../types'
+import type { PanelState, NewsletterEntry, SelectedItem } from '../types'
 
 function formatUpdatedAt(iso: string | null): string | null {
   if (!iso) return null
@@ -17,9 +17,11 @@ function formatUpdatedAt(iso: string | null): string | null {
 interface NewsletterPanelProps {
   panel: PanelState<NewsletterEntry[]>
   updatedAt: string | null
+  selectedItem: SelectedItem | null
+  onSelect: (item: SelectedItem) => void
 }
 
-export function NewsletterPanel({ panel, updatedAt }: NewsletterPanelProps) {
+export function NewsletterPanel({ panel, updatedAt, selectedItem, onSelect }: NewsletterPanelProps) {
   const { status } = panel
 
   const dotState = status.state === 'error' ? 'error'
@@ -56,36 +58,51 @@ export function NewsletterPanel({ panel, updatedAt }: NewsletterPanelProps) {
                 No newsletter digest available yet.
               </div>
             )
-            : panel.data.map(newsletter => (
-                <div key={newsletter.name} className="rounded-mc-md border border-mc-canvas-border p-3.5">
-                  <div className="text-mc-body font-semibold text-mc-ink">{newsletter.name}</div>
+            : panel.data.map(newsletter => {
+                const isSelected = selectedItem?.type === 'newsletter' && selectedItem.data.name === newsletter.name
+                const stories = newsletter.summary?.split('\n').filter(Boolean) ?? []
+                return (
+                  <button
+                    key={newsletter.name}
+                    onClick={() => newsletter.found && onSelect({ type: 'newsletter', data: newsletter })}
+                    disabled={!newsletter.found}
+                    className={`w-full text-left rounded-mc-md border p-3.5 focus:outline-none
+                      ${isSelected ? 'border-mc-d8 bg-mc-pill-blue-bg' : 'border-mc-canvas-border bg-mc-canvas hover:bg-mc-canvas-alt'}
+                      ${!newsletter.found ? 'cursor-default' : ''}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-mc-body font-semibold text-mc-ink">{newsletter.name}</div>
+                      {newsletter.found && <span className="text-mc-ink-faint flex-shrink-0">›</span>}
+                    </div>
 
-                  {!newsletter.found && (
-                    <div className="text-mc-sm text-mc-ink-faint mt-1">No issue found in last 24h.</div>
-                  )}
+                    {!newsletter.found && (
+                      <div className="text-mc-sm text-mc-ink-faint mt-1">No issue found in last 24h.</div>
+                    )}
 
-                  {newsletter.found && (
-                    <>
-                      {(newsletter.subject || newsletter.sender) && (
-                        <div className="text-mc-sm text-mc-ink-muted mt-1">
-                          {newsletter.subject}
-                          {newsletter.subject && newsletter.sender && '  ·  '}
-                          {newsletter.sender}
-                        </div>
-                      )}
-                      {newsletter.summary && (
-                        <ul className="mt-2 flex flex-col gap-1">
-                          {newsletter.summary.split('\n').filter(Boolean).map((line, i) => (
-                            <li key={i} className="text-mc-sm text-mc-ink leading-relaxed">
-                              {line.replace(/^•\s*/, '')}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </>
-                  )}
-                </div>
-              ))
+                    {newsletter.found && (
+                      <>
+                        {(newsletter.subject || newsletter.sender) && (
+                          <div className="text-mc-sm text-mc-ink-muted mt-1 truncate">
+                            {newsletter.subject}
+                            {newsletter.subject && newsletter.sender && '  ·  '}
+                            {newsletter.sender}
+                          </div>
+                        )}
+                        {stories.length > 0 && (
+                          <div className="text-mc-sm text-mc-ink mt-2 leading-relaxed truncate">
+                            {stories[0].replace(/^•\s*/, '')}
+                          </div>
+                        )}
+                        {stories.length > 1 && (
+                          <div className="text-mc-xs text-mc-d8 mt-1 uppercase tracking-widest font-bold">
+                            +{stories.length - 1} more {stories.length - 1 === 1 ? 'story' : 'stories'}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </button>
+                )
+              })
         )}
       </div>
     </section>

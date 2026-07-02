@@ -54,25 +54,21 @@ export const MOCK_NEWSLETTERS: NewsletterEntry[] = [
     found: true,
     subject: "🎉 Anthropic's Fable 5 returns worldwide",
     sender: 'The Rundown AI <news@daily.therundown.ai>',
-    summary: "• Anthropic restarts Fable 5 globally after US lifts export controls, with tighter filters\n• US government now gets pre-release access to Anthropic's future models before launch\n• Amazon researchers' security flaw findings prompted original 18-day shutdown of Fable 5",
+    summary: "• Anthropic restarts Fable 5: U.S. lifts export controls, model returns with tighter safety filters and government pre-release access to future models.\n• Meta preps cloud business: Meta plans to rent spare AI data center compute to outside developers, boosting its stock 9.3%.\n• Google's Design.md standard: New guide shows how to pair Google's Design.md with Claude Code to generate consistent, non-generic website designs.",
   },
   {
     name: 'The Neuron',
     found: true,
     subject: '😹 Fable 5 first reviews',
     sender: 'The Neuron <theneuron@newsletter.theneurondaily.com>',
-    summary: "• Anthropic's Fable 5 relaunched after government-forced shutdown, but defaults to Opus 4.8 for coding\n• Meta is aggressively building out a cloud business to compete in AI infrastructure\n• Together AI raised $800M to scale infrastructure for open-source AI models",
-  },
-  {
-    name: 'TLDR',
-    found: false,
+    summary: "• Fable 5 relaunch: Anthropic restored Claude's Fable 5 model after lifting government-driven export controls, adding a cybersecurity classifier that reroutes flagged coding requests to Opus 4.8.\n• Meta cloud ambitions: Meta is reportedly getting serious about launching its own cloud computing business.\n• Together AI raises $800M: The funding will scale open-model infrastructure for AI developers.",
   },
   {
     name: 'The Code',
     found: true,
     subject: '🚀 Cognition ships Devin for Security',
     sender: 'The Code <superhumancode@news.codenewsletter.ai>',
-    summary: '• Cognition launches Devin for Security, an autonomous agent for vulnerability triage\n• Anthropic drops Claude Sonnet 5 with major coding benchmark gains\n• US companies increasingly adopting Chinese open-source models for cost reasons',
+    summary: '• Cognition ships Devin Security Swarm: Parallel AI agents scan codebases for exploitable business logic flaws, verify them in sandboxes, and auto-generate patch PRs.\n• Meta reportedly building a cloud compute business: Meta is drafting "Meta Compute" to rent AI compute and host models, competing with AWS, Google Cloud, and Azure.\n• Claude Sonnet 5\'s "cheaper" pricing is a mirage: New tokenizer and heavier reasoning loops make Sonnet 5 cost ~15% more per task than Opus 4.8, despite flat token rates.',
   },
 ]
 

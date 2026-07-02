@@ -170,7 +170,7 @@ export default function App() {
       case 'jobRadar':
         return <JobRadarPanel panel={jobRadarPanel} updatedAt={jobRadarUpdatedAt} selectedItem={selectedItem} onSelect={setSelectedItem} />
       case 'newsletters':
-        return <NewsletterPanel panel={newsletterPanel} updatedAt={newslettersUpdatedAt} />
+        return <NewsletterPanel panel={newsletterPanel} updatedAt={newslettersUpdatedAt} selectedItem={selectedItem} onSelect={setSelectedItem} />
     }
   }
 
