@@ -1,6 +1,6 @@
 import { BrowserWindow, powerMonitor } from 'electron'
 import { getCalendarEvents, getInboxData } from './graph.service'
-import { fetchD8Tasks, fetchEggTasks, fetchBgcTasks } from './notion.service'
+import { fetchD8Tasks, fetchEggTasks, fetchBgcTasks, fetchJobRadar } from './notion.service'
 import { checkAndFire, scheduleMidnightClear } from './notification.scheduler'
 import { getConfig } from './config'
 import type { PollResult } from '../shared/ipc-types'
@@ -28,10 +28,12 @@ let _mainWindow: BrowserWindow | null = null
  */
 const DEFAULT_POLL_RESULT: PollResult = {
   calendar: [],
-  inbox: { outlookUnread: 0, outlookTopSubjects: [], teamsUnread: null },
+  inbox: { outlookUnread: 0, outlookTopSubjects: [], teamsUnread: null, recentChats: [] },
   d8Tasks: [],
   eggTasks: [],
   bgcTasks: [],
+  jobRadar: [],
+  jobRadarUpdatedAt: null,
 }
 
 /**
@@ -76,21 +78,25 @@ async function pollGraph(): Promise<void> {
  */
 export async function pollNotion(): Promise<void> {
   const base = _lastResult ?? DEFAULT_POLL_RESULT
-  const [d8Result, eggResult, bgcResult] = await Promise.allSettled([
+  const [d8Result, eggResult, bgcResult, jobRadarResult] = await Promise.allSettled([
     fetchD8Tasks(),
     fetchEggTasks(),
     fetchBgcTasks(),
+    fetchJobRadar(),
   ])
 
   const d8Tasks = d8Result.status === 'fulfilled' ? d8Result.value : base.d8Tasks
   const eggTasks = eggResult.status === 'fulfilled' ? eggResult.value : base.eggTasks
   const bgcTasks = bgcResult.status === 'fulfilled' ? bgcResult.value : base.bgcTasks
+  const jobRadar = jobRadarResult.status === 'fulfilled' ? jobRadarResult.value.jobs : base.jobRadar
+  const jobRadarUpdatedAt = jobRadarResult.status === 'fulfilled' ? jobRadarResult.value.updatedAt : base.jobRadarUpdatedAt
 
   if (d8Result.status === 'rejected') console.error('[PollCoordinator] fetchD8Tasks failed:', d8Result.reason)
   if (eggResult.status === 'rejected') console.error('[PollCoordinator] fetchEggTasks failed:', eggResult.reason)
   if (bgcResult.status === 'rejected') console.error('[PollCoordinator] fetchBgcTasks failed:', bgcResult.reason)
+  if (jobRadarResult.status === 'rejected') console.error('[PollCoordinator] fetchJobRadar failed:', jobRadarResult.reason)
 
-  _lastResult = { ...base, d8Tasks, eggTasks, bgcTasks }
+  _lastResult = { ...base, d8Tasks, eggTasks, bgcTasks, jobRadar, jobRadarUpdatedAt }
 
   if (_mainWindow && !_mainWindow.isDestroyed()) {
     _mainWindow.webContents.send('poll-update', _lastResult)

@@ -8,7 +8,7 @@ export function SkeletonBars({ count = 4 }: SkeletonBarsProps) {
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="h-3 rounded-mc-sm bg-mc-surface-raised animate-pulse"
+          className="h-3 rounded-mc-sm bg-mc-canvas-alt animate-pulse"
           style={{ width: `${70 + (i % 3) * 10}%` }}
         />
       ))}

@@ -14,5 +14,5 @@
       "@renderer/*": ["src/renderer/src/*"]
     }
   },
-  "include": ["src/renderer/env.d.ts", "src/renderer/src/**/*", "electron.vite.config.ts"]
+  "include": ["src/renderer/env.d.ts", "src/renderer/src/**/*", "src/preload/index.ts", "src/shared/**/*", "electron.vite.config.ts"]
 }

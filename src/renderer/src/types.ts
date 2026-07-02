@@ -11,12 +11,15 @@ export interface PanelState<T> {
   data: T | null
 }
 
-export type { CalendarEvent, NotionTask, InboxData, PollResult, TaskWorkspace } from '../../shared/ipc-types'
+export type { CalendarEvent, NotionTask, InboxData, PollResult, TaskWorkspace, JobRadarEntry, ChatMessage } from '../../shared/ipc-types'
 
-import type { CalendarEvent, NotionTask, ChatMessage, TaskWorkspace } from '../../shared/ipc-types'
+import type { CalendarEvent, NotionTask, ChatMessage, TaskWorkspace, JobRadarEntry } from '../../shared/ipc-types'
 
 export type SelectedItem =
   | { type: 'calendar'; data: CalendarEvent }
   | { type: 'task'; data: NotionTask; workspace: TaskWorkspace }
   | { type: 'inbox'; data: { from: string; subject: string } }
   | { type: 'chat'; data: ChatMessage }
+  | { type: 'job'; data: JobRadarEntry }
+
+export type NavPanelId = 'meeting' | 'inbox' | 'd8' | 'bgc' | 'egg' | 'jobRadar'

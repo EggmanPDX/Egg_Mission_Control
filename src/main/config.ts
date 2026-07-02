@@ -12,6 +12,7 @@ export interface AppConfig {
     d8_tasks_db: string
     egg_tasks_db: string
     bgc_tasks_db: string
+    morning_briefing_page_id: string
   }
   azure: {
     client_id: string
@@ -37,6 +38,7 @@ const DEFAULTS: AppConfig = {
     d8_tasks_db: 'ff6a202b-2ee2-4756-857e-f002bb15a953',
     egg_tasks_db: '814d208b-fc6b-4515-9d8f-29da8bd459f7',
     bgc_tasks_db: '',
+    morning_briefing_page_id: '34ff8311feeb8142b65ccc44e31cc31d',
   },
   azure: {
     client_id: '',
@@ -64,7 +66,17 @@ export function loadConfig(): AppConfig {
 
   try {
     const raw = fs.readFileSync(CONFIG_PATH, 'utf8')
-    _config = { ...DEFAULTS, ...JSON.parse(raw) }
+    const saved = JSON.parse(raw) as Partial<AppConfig>
+    // Shallow-spread each nested section individually — a plain top-level spread would let an
+    // on-disk config saved before a new field existed (e.g. morning_briefing_page_id) silently
+    // wipe that field back out, since the saved "notion" object would fully replace the default.
+    _config = {
+      ...DEFAULTS,
+      ...saved,
+      notion: { ...DEFAULTS.notion, ...saved.notion },
+      azure: { ...DEFAULTS.azure, ...saved.azure },
+      refresh: { ...DEFAULTS.refresh, ...saved.refresh },
+    }
     return _config
   } catch {
     // Corrupt config — back it up and reset to defaults

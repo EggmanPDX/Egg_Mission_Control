@@ -1,14 +1,33 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { MeetingBrief } from './panels/MeetingBrief'
-import { NotionTasks } from './panels/NotionTasks'
+import { TaskPanel } from './panels/TaskPanel'
 import { InboxPulse } from './panels/InboxPulse'
+import { JobRadarPanel } from './panels/JobRadarPanel'
 import { NotionSetup } from './panels/NotionSetup'
-import { DetailModal } from './components/DetailModal'
-import type { PanelState, CalendarEvent, NotionTask, InboxData, PollResult, SelectedItem } from './types'
+import { NavSidebar } from './components/NavSidebar'
+import { DetailPanel } from './components/DetailPanel'
+import type { PanelState, CalendarEvent, NotionTask, InboxData, JobRadarEntry, PollResult, SelectedItem, NavPanelId } from './types'
 
 const loading = <T,>(): PanelState<T> => ({ status: { state: 'loading' }, data: null })
 
+const ACTIVE_PANEL_KEY = 'mc:active-panel'
+const PANEL_TITLES: Record<NavPanelId, string> = {
+  meeting: 'Meeting Brief',
+  inbox: 'Inbox Pulse',
+  d8: 'D8 Tasks',
+  bgc: 'BGC Tasks',
+  egg: 'Egg Tasks',
+  jobRadar: 'Job Radar',
+}
+
+function loadActivePanel(): NavPanelId {
+  const saved = localStorage.getItem(ACTIVE_PANEL_KEY)
+  if (saved && saved in PANEL_TITLES) return saved as NavPanelId
+  return 'meeting'
+}
+
 export default function App() {
+  const [activePanel, setActivePanelState] = useState<NavPanelId>(loadActivePanel)
   const [showNotionSetup, setShowNotionSetup] = useState(false)
   const [msGraphAuthed, setMsGraphAuthed] = useState(false)
   const [flashDots, setFlashDots] = useState(false)
@@ -19,11 +38,19 @@ export default function App() {
   const [eggTaskPanel, setEggTaskPanel] = useState<PanelState<NotionTask[]>>(loading())
   const [bgcTaskPanel, setBgcTaskPanel] = useState<PanelState<NotionTask[]>>(loading())
   const [inboxPanel, setInboxPanel] = useState<PanelState<InboxData>>(loading())
+  const [jobRadarPanel, setJobRadarPanel] = useState<PanelState<JobRadarEntry[]>>(loading())
+  const [jobRadarUpdatedAt, setJobRadarUpdatedAt] = useState<string | null>(null)
 
   // Guards applyPollResult against overwriting a correctly-set 'not-configured' state with a
   // stale cached poll result — isNotionConfigured() and getPollResult() race on mount and can
   // resolve in either order.
   const notionConfiguredRef = useRef<boolean>(false)
+
+  function setActivePanel(id: NavPanelId) {
+    setActivePanelState(id)
+    setSelectedItem(null)
+    localStorage.setItem(ACTIVE_PANEL_KEY, id)
+  }
 
   const applyPollResult = useCallback((result: PollResult) => {
     setMeetingPanel({
@@ -47,6 +74,11 @@ export default function App() {
         status: result.bgcTasks.length === 0 ? { state: 'empty' } : { state: 'ok' },
         data: result.bgcTasks,
       })
+      setJobRadarPanel({
+        status: result.jobRadar.length === 0 ? { state: 'empty' } : { state: 'ok' },
+        data: result.jobRadar,
+      })
+      setJobRadarUpdatedAt(result.jobRadarUpdatedAt)
     }
   }, [])
 
@@ -58,6 +90,7 @@ export default function App() {
         setD8TaskPanel({ status: { state: 'not-configured' }, data: null })
         setEggTaskPanel({ status: { state: 'not-configured' }, data: null })
         setBgcTaskPanel({ status: { state: 'not-configured' }, data: null })
+        setJobRadarPanel({ status: { state: 'not-configured' }, data: null })
       }
     })
 
@@ -90,6 +123,7 @@ export default function App() {
     setD8TaskPanel(loading())
     setEggTaskPanel(loading())
     setBgcTaskPanel(loading())
+    setJobRadarPanel(loading())
     // Poll coordinator will pick up Notion token and update on next cycle
   }
 
@@ -110,12 +144,31 @@ export default function App() {
     )
   }
 
+  function renderActivePanel() {
+    switch (activePanel) {
+      case 'meeting':
+        return <MeetingBrief panel={meetingPanel} flashAuthDot={flashDots} onSelect={item => setSelectedItem({ type: 'calendar', data: item })} />
+      case 'inbox':
+        return <InboxPulse panel={inboxPanel} flashAuthDot={flashDots} onSelect={setSelectedItem} />
+      case 'd8':
+        return <TaskPanel workspace="D8" label="D8" panel={d8TaskPanel} selectedItem={selectedItem} onSelect={setSelectedItem} onSetupNotion={() => setShowNotionSetup(true)} onTaskMutated={refreshAfterMutation} />
+      case 'bgc':
+        return <TaskPanel workspace="BGC" label="BGC" panel={bgcTaskPanel} selectedItem={selectedItem} onSelect={setSelectedItem} onSetupNotion={() => setShowNotionSetup(true)} onTaskMutated={refreshAfterMutation} />
+      case 'egg':
+        return <TaskPanel workspace="EGG" label="Egg" panel={eggTaskPanel} selectedItem={selectedItem} onSelect={setSelectedItem} onSetupNotion={() => setShowNotionSetup(true)} onTaskMutated={refreshAfterMutation} />
+      case 'jobRadar':
+        return <JobRadarPanel panel={jobRadarPanel} updatedAt={jobRadarUpdatedAt} selectedItem={selectedItem} onSelect={setSelectedItem} />
+    }
+  }
+
   return (
     <>
-    <div className="flex flex-col h-screen bg-mc-base text-mc-text-primary">
+    <div className="flex flex-col h-screen bg-mc-canvas text-mc-ink">
       {/* Titlebar */}
-      <div className="flex items-center justify-between px-4 h-8 bg-mc-surface-raised border-b border-mc-border flex-shrink-0" style={{ paddingLeft: '80px' }}>
-        <span className="text-mc-xs uppercase tracking-widest text-mc-text-label mx-auto">MISSION CONTROL</span>
+      <div className="flex items-center justify-between px-4 h-8 bg-mc-sidebar border-b border-mc-sidebar-border flex-shrink-0" style={{ paddingLeft: '80px' }}>
+        <span className="text-mc-xs uppercase tracking-widest text-white/60">
+          Mission Control <span className="text-white/30 mx-1.5">|</span> <span className="text-white/90">{PANEL_TITLES[activePanel]}</span>
+        </span>
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.api.triggerReauth()}
@@ -132,33 +185,19 @@ export default function App() {
         </div>
       </div>
 
-      {/* Three-panel layout */}
+      {/* Nav + canvas */}
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 min-w-0">
-          <MeetingBrief panel={meetingPanel} flashAuthDot={flashDots} onSelect={item => setSelectedItem({ type: 'calendar', data: item })} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <NotionTasks
-            d8Panel={d8TaskPanel}
-            eggPanel={eggTaskPanel}
-            bgcPanel={bgcTaskPanel}
-            onSetupNotion={() => setShowNotionSetup(true)}
-            onSelect={setSelectedItem}
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <InboxPulse panel={inboxPanel} flashAuthDot={flashDots} onSelect={setSelectedItem} />
+        <NavSidebar active={activePanel} onSelect={setActivePanel} onOpenSettings={() => setShowNotionSetup(true)} />
+        <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 min-w-0">
+            {renderActivePanel()}
+          </div>
+          {selectedItem && (
+            <DetailPanel item={selectedItem} onClose={() => setSelectedItem(null)} onTaskMutated={refreshAfterMutation} />
+          )}
         </div>
       </div>
     </div>
-
-    {selectedItem && (
-      <DetailModal
-        item={selectedItem}
-        onClose={() => setSelectedItem(null)}
-        onTaskMutated={refreshAfterMutation}
-      />
-    )}
     </>
   )
 }

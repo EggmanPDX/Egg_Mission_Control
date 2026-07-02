@@ -1,5 +1,3 @@
 /// <reference types="vite/client" />
-
-interface Window {
-  api: Record<string, unknown>
-}
+// window.api's real type comes from src/preload/index.ts's global declaration
+// (included in tsconfig.json) — do not redeclare it here.

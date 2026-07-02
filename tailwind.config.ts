@@ -31,6 +31,24 @@ const config: Config = {
           'text-muted':     '#666666',
           'text-faint':     '#444444',
           'text-label':     '#555555',
+
+          // Light-canvas theme (nav sidebar stays dark; canvas content area is light) —
+          // introduced for the left-nav redesign per design team mockups.
+          sidebar:          '#0f1a2e',
+          'sidebar-active': '#1e3a6b',
+          'sidebar-border': '#1c2b46',
+          canvas:           '#ffffff',
+          'canvas-alt':     '#f6f7f9',
+          'canvas-border':  '#e5e7eb',
+          ink:              '#111827',
+          'ink-muted':      '#6b7280',
+          'ink-faint':      '#9ca3af',
+          'pill-blue-bg':   '#dbeafe',
+          'pill-blue-text': '#1e40af',
+          'pill-red-bg':    '#fee2e2',
+          'pill-red-text':  '#b91c1c',
+          'pill-gray-bg':   '#f3f4f6',
+          'pill-gray-text': '#4b5563',
         }
       },
       borderRadius: {

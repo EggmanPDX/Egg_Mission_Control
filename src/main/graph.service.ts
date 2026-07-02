@@ -1,4 +1,4 @@
-import type { CalendarEvent, InboxData } from '../shared/ipc-types'
+import type { CalendarEvent, InboxData, ChatMessage } from '../shared/ipc-types'
 import { getAccessToken } from './auth.service'
 import { MOCK_MODE, getMockPollResult } from './mock'
 
@@ -14,17 +14,14 @@ interface GraphCalendarEvent {
   end: { dateTime: string }
   attendees: Array<{ emailAddress: { name: string } }>
   webLink?: string
-  organizer?: { emailAddress: { name: string } }
+  body?: { content: string; contentType: string }
+  isOnlineMeeting?: boolean
+  onlineMeeting?: { joinUrl: string }
 }
 
 interface GraphMessage {
   subject: string
-  from: {
-    emailAddress: {
-      name: string
-      address: string
-    }
-  }
+  from: { emailAddress: { name: string; address: string } }
   isRead: boolean
 }
 
@@ -32,6 +29,16 @@ interface GraphChat {
   id: string
   topic?: string
   unreadMessageCount?: number
+  webUrl?: string
+  lastMessagePreview?: {
+    createdDateTime: string
+    body: { content: string }
+    from?: { user?: { displayName: string } }
+  }
+}
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim()
 }
 
 async function fetchWithBackoff(
@@ -43,11 +50,12 @@ async function fetchWithBackoff(
   const headers = {
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
+    // Request UTC so dateTime values parse correctly as ISO 8601 without ambiguity
+    'Prefer': 'outlook.timezone="UTC"',
   }
 
   const response = await fetch(url, { method, headers })
 
-  // Handle throttling (429)
   if (response.status === 429) {
     if (retryCount >= MAX_RETRIES) {
       throw new Error(`Max retries exceeded (${MAX_RETRIES}) for ${url}`)
@@ -59,9 +67,7 @@ async function fetchWithBackoff(
 
     if (retryAfter) {
       const retryAfterSeconds = parseInt(retryAfter, 10)
-      if (!isNaN(retryAfterSeconds)) {
-        backoffMs = retryAfterSeconds * 1000
-      }
+      if (!isNaN(retryAfterSeconds)) backoffMs = retryAfterSeconds * 1000
     }
 
     await new Promise((resolve) => setTimeout(resolve, backoffMs))
@@ -76,43 +82,35 @@ async function fetchWithBackoff(
 }
 
 export async function getCalendarEvents(): Promise<CalendarEvent[]> {
-  if (MOCK_MODE) {
-    return getMockPollResult().calendar
-  }
+  if (MOCK_MODE) return getMockPollResult().calendar
 
   const token = await getAccessToken()
 
-  // Fetch events for today (using UTC to avoid timezone-related data loss)
   const today = new Date()
-  const utcYear = today.getUTCFullYear()
-  const utcMonth = today.getUTCMonth()
-  const utcDate = today.getUTCDate()
+  const startOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0))
+  const endOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + 1, 0, 0, 0))
 
-  const startOfDay = new Date(Date.UTC(utcYear, utcMonth, utcDate, 0, 0, 0))
-  const endOfDay = new Date(Date.UTC(utcYear, utcMonth, utcDate + 1, 0, 0, 0))
-
-  const startISO = startOfDay.toISOString()
-  const endISO = endOfDay.toISOString()
-
-  const url = `${GRAPH_API_BASE}/me/calendarView?startDateTime=${encodeURIComponent(startISO)}&endDateTime=${encodeURIComponent(endISO)}`
+  const url = `${GRAPH_API_BASE}/me/calendarView?startDateTime=${encodeURIComponent(startOfDay.toISOString())}&endDateTime=${encodeURIComponent(endOfDay.toISOString())}&$select=id,subject,start,end,attendees,webLink,body,isOnlineMeeting,onlineMeeting`
 
   const response = await fetchWithBackoff(url, token)
   const data = (await response.json()) as { value: GraphCalendarEvent[] }
 
-  return data.value.map((event: GraphCalendarEvent) => ({
+  const toUtc = (dt: string) => dt.endsWith('Z') ? dt : dt + 'Z'
+
+  return data.value.map((event) => ({
     id: event.id,
     subject: event.subject,
-    start: event.start.dateTime,
-    end: event.end.dateTime,
+    start: toUtc(event.start.dateTime),
+    end: toUtc(event.end.dateTime),
     attendees: event.attendees.map((a) => a.emailAddress.name),
     webLink: event.webLink,
+    body: event.body ? stripHtml(event.body.content) : undefined,
+    joinUrl: event.isOnlineMeeting ? event.onlineMeeting?.joinUrl : undefined,
   }))
 }
 
 export async function getInboxData(): Promise<InboxData> {
-  if (MOCK_MODE) {
-    return getMockPollResult().inbox
-  }
+  if (MOCK_MODE) return getMockPollResult().inbox
 
   const token = await getAccessToken()
 
@@ -121,7 +119,7 @@ export async function getInboxData(): Promise<InboxData> {
   const messagesResponse = await fetchWithBackoff(messagesUrl, token)
   const messagesData = (await messagesResponse.json()) as { value: GraphMessage[] }
 
-  const outlookTopSubjects = messagesData.value.map((msg: GraphMessage) => ({
+  const outlookTopSubjects = messagesData.value.map((msg) => ({
     subject: msg.subject,
     from: msg.from.emailAddress.name || msg.from.emailAddress.address,
   }))
@@ -132,23 +130,29 @@ export async function getInboxData(): Promise<InboxData> {
   const unreadCountData = (await unreadCountResponse.json()) as { value: unknown[] }
   const outlookUnread = unreadCountData.value.length
 
-  // Fetch Teams unread count (if available)
+  // Fetch Teams chats with last message preview
   let teamsUnread: number | null = null
+  let recentChats: ChatMessage[] = []
+
   try {
-    const chatsUrl = `${GRAPH_API_BASE}/me/chats?$select=id,topic,unreadMessageCount`
+    const chatsUrl = `${GRAPH_API_BASE}/me/chats?$select=id,topic,unreadMessageCount,webUrl&$expand=lastMessagePreview&$top=5`
     const chatsResponse = await fetchWithBackoff(chatsUrl, token)
     const chatsData = (await chatsResponse.json()) as { value: GraphChat[] }
-    teamsUnread = chatsData.value.reduce((sum, chat: GraphChat) => {
-      return sum + (chat.unreadMessageCount || 0)
-    }, 0)
+
+    teamsUnread = chatsData.value.reduce((sum, c) => sum + (c.unreadMessageCount || 0), 0)
+
+    recentChats = chatsData.value
+      .filter(c => c.lastMessagePreview)
+      .map(c => ({
+        chatId: c.id,
+        from: c.lastMessagePreview?.from?.user?.displayName ?? 'Unknown',
+        preview: stripHtml(c.lastMessagePreview?.body?.content ?? '').slice(0, 120),
+        receivedAt: c.lastMessagePreview?.createdDateTime ?? '',
+        webUrl: c.webUrl,
+      }))
   } catch {
     // Teams Chat.Read scope may not be available
-    teamsUnread = null
   }
 
-  return {
-    outlookUnread,
-    outlookTopSubjects,
-    teamsUnread,
-  }
+  return { outlookUnread, outlookTopSubjects, teamsUnread, recentChats }
 }

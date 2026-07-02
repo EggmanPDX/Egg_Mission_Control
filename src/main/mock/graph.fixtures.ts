@@ -1,4 +1,4 @@
-import type { CalendarEvent, InboxData } from '../../shared/ipc-types'
+import type { CalendarEvent, InboxData, ChatMessage } from '../../shared/ipc-types'
 
 const now = new Date()
 const todayStr = now.toISOString().split('T')[0]
@@ -23,6 +23,7 @@ export const MOCK_CALENDAR: CalendarEvent[] = [
     end: todayAt(15, 0),
     attendees: ['MJ', 'Full team'],
     webLink: 'https://teams.microsoft.com/l/meetup-join/mock2',
+    joinUrl: 'https://teams.microsoft.com/l/meetup-join/mock2-online',
   },
   {
     id: 'evt-003',
@@ -34,6 +35,11 @@ export const MOCK_CALENDAR: CalendarEvent[] = [
   },
 ]
 
+const MOCK_CHATS: ChatMessage[] = [
+  { chatId: 'chat-1', from: 'MJ', preview: 'Can you send over the updated delivery doc before standup?', receivedAt: new Date(Date.now() - 15 * 60000).toISOString(), webUrl: 'https://teams.microsoft.com/l/chat/mock1' },
+  { chatId: 'chat-2', from: 'Connor', preview: 'The client loved the prototype — they want to see Phase 2 scoped out this week.', receivedAt: new Date(Date.now() - 45 * 60000).toISOString(), webUrl: 'https://teams.microsoft.com/l/chat/mock2' },
+]
+
 export const MOCK_INBOX: InboxData = {
   outlookUnread: 12,
   outlookTopSubjects: [
@@ -42,4 +48,5 @@ export const MOCK_INBOX: InboxData = {
     { subject: 'RE: Sprint review notes', from: 'Priya' },
   ],
   teamsUnread: 4,
+  recentChats: MOCK_CHATS,
 }

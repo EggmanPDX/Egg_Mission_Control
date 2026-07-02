@@ -6,6 +6,19 @@ export interface CalendarEvent {
   attendees: string[]  // display names
   webLink?: string
   body?: string        // plain-text agenda/description
+  joinUrl?: string      // direct Teams/Zoom join link, when the event is an online meeting
+}
+
+export interface JobRadarEntry {
+  id: string           // stable synthetic id (derived from apply_url) — Job Radar has no page-level Notion id
+  title: string
+  company: string
+  location: string
+  postedAgo: string
+  applicants: string
+  score: number
+  reason: string
+  applyUrl: string
 }
 
 export interface NotionTask {
@@ -37,6 +50,8 @@ export interface PollResult {
   d8Tasks: NotionTask[]
   eggTasks: NotionTask[]
   bgcTasks: NotionTask[]
+  jobRadar: JobRadarEntry[]
+  jobRadarUpdatedAt: string | null  // ISO 8601, parsed from the "Last updated: ..." callout
 }
 
 export type TaskWorkspace = 'D8' | 'EGG' | 'BGC'

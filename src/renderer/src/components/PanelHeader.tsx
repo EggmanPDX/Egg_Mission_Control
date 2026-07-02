@@ -10,14 +10,14 @@ interface PanelHeaderProps {
 
 export function PanelHeader({ label, shortLabel, dotState, staleLabel, flashDot }: PanelHeaderProps) {
   return (
-    <div className="flex items-center justify-between px-3 h-9 bg-mc-surface-raised border-b border-mc-border flex-shrink-0">
-      <span className="text-mc-xs uppercase font-mono tracking-widest text-mc-text-label">
+    <div className="flex items-center justify-between px-4 h-11 bg-mc-canvas-alt border-b border-mc-canvas-border flex-shrink-0">
+      <span className="text-mc-xs uppercase font-mono tracking-widest text-mc-ink-muted font-semibold">
         <span className="hidden sm:inline">{label}</span>
         <span className="sm:hidden">{shortLabel ?? label}</span>
       </span>
       <div className="flex items-center gap-1.5">
         {staleLabel && (
-          <span className="text-mc-sm text-mc-stale bg-mc-D8-bg px-1.5 py-0.5 rounded-mc-sm">
+          <span className="text-mc-sm text-[#92620a] bg-[#fdf1dc] px-1.5 py-0.5 rounded-mc-sm">
             ⬤ {staleLabel}
           </span>
         )}

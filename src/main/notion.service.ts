@@ -1,6 +1,6 @@
 import { Client as NotionClient } from '@notionhq/client'
 import type { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints'
-import type { NotionTask, TaskWorkspace } from '../shared/ipc-types'
+import type { NotionTask, TaskWorkspace, JobRadarEntry } from '../shared/ipc-types'
 import { getStoredNotionToken } from './auth.service'
 import { getConfig } from './config'
 import { getMockPollResult, MOCK_MODE } from './mock'
@@ -45,7 +45,7 @@ async function queryWithRetry<T>(
       const error = err instanceof Error ? err : new Error(String(err))
 
       // Check for 429 (rate limit)
-      if ('status' in err && err.status === 429) {
+      if (typeof err === 'object' && err !== null && 'status' in err && (err as { status: unknown }).status === 429) {
         lastError = error
         if (attempt < maxAttempts - 1) {
           // Wait before retrying
@@ -129,7 +129,9 @@ async function queryDatabase(databaseId: string): Promise<NotionTask[]> {
 
         // Extract priority from Priority property
         let priority: 'P1' | 'P2' | 'P3' | null = null
-        const priorityProperty = properties.Priority
+        const priorityProperty = properties.Priority as
+          | { type: 'select'; select: { name: string } | null }
+          | undefined
         if (priorityProperty?.type === 'select' && priorityProperty.select?.name) {
           priority = mapPriority(priorityProperty.select.name)
         }
@@ -275,8 +277,121 @@ export async function moveTask(pageId: string, from: TaskWorkspace, to: TaskWork
 
   await client.pages.create({
     parent: { database_id: toDb },
-    properties: newProperties,
+    properties: newProperties as Parameters<typeof client.pages.create>[0]['properties'],
   })
 
   await client.pages.update({ page_id: pageId, archived: true })
+}
+
+// ── Job Radar ────────────────────────────────────────────────────────────────
+// Job Radar has no Notion database of its own — Egg_Morning_Brief writes it as a block
+// section (heading_2 "💼 Job Radar" + a callout timestamp + one bulleted_list_item per job)
+// directly on the shared Morning Briefing page. There's no typed API for this, so we walk
+// the page's blocks and parse the exact rich_text shape that notion_writer.py's
+// build_job_radar_blocks() produces. If that shape ever changes on the Python side, this
+// parser needs to change too — the two are coupled by convention, not by a shared schema.
+
+const JOB_RADAR_HEADING = 'Job Radar'
+const SECTION_STOP_TYPES = new Set(['heading_1', 'heading_2', 'divider'])
+
+interface NotionRichText {
+  type: string
+  plain_text: string
+  text?: { link?: { url: string } | null }
+}
+
+interface NotionBlock {
+  id: string
+  type: string
+  [key: string]: unknown
+}
+
+function richTextOf(block: NotionBlock): NotionRichText[] {
+  const body = block[block.type] as { rich_text?: NotionRichText[] } | undefined
+  return body?.rich_text ?? []
+}
+
+function plainTextOf(block: NotionBlock): string {
+  return richTextOf(block).map((rt) => rt.plain_text).join('')
+}
+
+/** Parses one job's bulleted_list_item into a JobRadarEntry. Returns null on any shape mismatch
+ *  rather than throwing — one malformed entry shouldn't take down the whole Job Radar panel. */
+function parseJobEntry(block: NotionBlock): JobRadarEntry | null {
+  const rich = richTextOf(block)
+  if (rich.length < 3) return null
+
+  const [titleCompanyRun, metaRun, applyRun] = rich
+  const applyUrl = applyRun.text?.link?.url
+  if (!applyUrl) return null
+
+  const sepIndex = titleCompanyRun.plain_text.lastIndexOf(' — ')
+  if (sepIndex === -1) return null
+  const title = titleCompanyRun.plain_text.slice(0, sepIndex).trim()
+  const company = titleCompanyRun.plain_text.slice(sepIndex + 3).trim()
+
+  // meta shape: "  ·  {location}  ·  {posted}  ·  {applicants} applicants  ·  {score}/100 — {reason}  ·  "
+  const parts = metaRun.plain_text.split('·').map((s) => s.trim()).filter(Boolean)
+  if (parts.length < 4) return null
+  const [location, postedAgo, applicants, scoreAndReason] = parts
+
+  const scoreSepIndex = scoreAndReason.indexOf('/100 — ')
+  if (scoreSepIndex === -1) return null
+  const score = parseInt(scoreAndReason.slice(0, scoreSepIndex), 10)
+  const reason = scoreAndReason.slice(scoreSepIndex + 7).trim()
+  if (isNaN(score)) return null
+
+  return { id: applyUrl, title, company, location, postedAgo, applicants, score, reason, applyUrl }
+}
+
+/** Best-effort parse of Egg_Morning_Brief's human-readable "Last updated: <text>" timestamp
+ *  (e.g. "July 02, 2026 at 12:45 PM") into ISO 8601. Falls back to the raw text if the format
+ *  doesn't parse cleanly — the renderer can still display it even if it can't compute staleness. */
+function parseUpdatedTimestamp(calloutText: string): string | null {
+  const match = calloutText.match(/Last updated:\s*(.+)/)
+  if (!match) return null
+  const raw = match[1].trim()
+  const parsed = new Date(raw.replace(' at ', ', '))
+  return isNaN(parsed.getTime()) ? raw : parsed.toISOString()
+}
+
+export async function fetchJobRadar(): Promise<{ jobs: JobRadarEntry[]; updatedAt: string | null }> {
+  if (MOCK_MODE) {
+    const mock = getMockPollResult()
+    return { jobs: mock.jobRadar, updatedAt: mock.jobRadarUpdatedAt }
+  }
+
+  const config = getConfig()
+  const pageId = config.notion.morning_briefing_page_id
+  if (!pageId) return { jobs: [], updatedAt: null }
+
+  const client = getClient()
+  const response = await queryWithRetry(() =>
+    client.blocks.children.list({ block_id: pageId, page_size: 100 })
+  )
+  const blocks = response.results as unknown as NotionBlock[]
+
+  let inSection = false
+  let updatedAt: string | null = null
+  const jobs: JobRadarEntry[] = []
+
+  for (const block of blocks) {
+    if (!inSection) {
+      if (block.type === 'heading_2' && plainTextOf(block).includes(JOB_RADAR_HEADING)) {
+        inSection = true
+      }
+      continue
+    }
+
+    if (SECTION_STOP_TYPES.has(block.type)) break
+
+    if (block.type === 'callout' && updatedAt === null) {
+      updatedAt = parseUpdatedTimestamp(plainTextOf(block))
+    } else if (block.type === 'bulleted_list_item') {
+      const job = parseJobEntry(block)
+      if (job) jobs.push(job)
+    }
+  }
+
+  return { jobs, updatedAt }
 }
