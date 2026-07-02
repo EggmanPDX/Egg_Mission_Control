@@ -16,6 +16,11 @@ mac:
   category: public.app-category.productivity
   hardenedRuntime: false
 
+protocols:
+  name: Mission Control Protocol
+  schemes:
+    - missioncontrol
+
 asarUnpack:
   - '**/*.node'
 

@@ -88,6 +88,20 @@ async function triggerReauthAndWait(): Promise<string> {
   })
 }
 
+/**
+ * Thrown when a valid token can't be obtained silently. Callers (poll cycles) should treat
+ * this as "not authenticated yet" and leave the UI's existing re-authenticate affordance in
+ * place — never trigger the interactive browser flow from a background poll. The interactive
+ * flow only runs from an explicit user action (the D8 badge's "re-authenticate" click, which
+ * calls triggerReauth() below).
+ */
+export class AuthRequiredError extends Error {
+  constructor() {
+    super('Microsoft sign-in required — call triggerReauth() from a user action')
+    this.name = 'AuthRequiredError'
+  }
+}
+
 export async function getAccessToken(): Promise<string> {
   const msalApp = getMsalApp()
   const accounts = await msalApp.getTokenCache().getAllAccounts()
@@ -102,14 +116,15 @@ export async function getAccessToken(): Promise<string> {
       return result.accessToken
     } catch (err) {
       if (err instanceof InteractionRequiredAuthError) {
-        const token = await triggerReauthAndWait()
-        return token
+        _authed = false
+        throw new AuthRequiredError()
       }
       throw err
     }
   }
 
-  return triggerReauthAndWait()
+  _authed = false
+  throw new AuthRequiredError()
 }
 
 export async function handleAuthCallback(callbackUrl: string): Promise<void> {

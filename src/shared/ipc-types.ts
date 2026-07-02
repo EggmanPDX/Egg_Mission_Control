@@ -5,6 +5,7 @@ export interface CalendarEvent {
   end: string          // ISO 8601
   attendees: string[]  // display names
   webLink?: string
+  body?: string        // plain-text agenda/description
 }
 
 export interface NotionTask {
@@ -15,10 +16,19 @@ export interface NotionTask {
   url: string
 }
 
+export interface ChatMessage {
+  chatId: string
+  from: string
+  preview: string
+  receivedAt: string   // ISO 8601
+  webUrl?: string
+}
+
 export interface InboxData {
   outlookUnread: number
   outlookTopSubjects: Array<{ subject: string; from: string }>
   teamsUnread: number | null  // null = scope unavailable
+  recentChats: ChatMessage[]
 }
 
 export interface PollResult {
@@ -26,7 +36,10 @@ export interface PollResult {
   inbox: InboxData
   d8Tasks: NotionTask[]
   eggTasks: NotionTask[]
+  bgcTasks: NotionTask[]
 }
+
+export type TaskWorkspace = 'D8' | 'EGG' | 'BGC'
 
 export interface IpcChannels {
   // renderer → main
@@ -35,6 +48,9 @@ export interface IpcChannels {
   'validate-notion-token': (token: string) => Promise<{ ok: boolean; error?: string }>
   'is-notion-configured': () => Promise<boolean>
   'trigger-reauth': () => Promise<void>
+  'archive-notion-task': (taskId: string) => Promise<{ ok: boolean; error?: string }>
+  'complete-notion-task': (taskId: string, workspace: TaskWorkspace) => Promise<{ ok: boolean; error?: string }>
+  'move-notion-task': (taskId: string, from: TaskWorkspace, to: TaskWorkspace) => Promise<{ ok: boolean; error?: string }>
   // main → renderer (push events)
   'poll-update': PollResult
   'auth-state-change': { msGraphAuthed: boolean; notionConfigured: boolean }

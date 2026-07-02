@@ -2,9 +2,9 @@ import { app, BrowserWindow, ipcMain, shell, protocol } from 'electron'
 import { join } from 'path'
 import { loadConfig } from './config'
 import { handleAuthCallback, getStoredNotionToken, storeNotionToken, triggerReauth } from './auth.service'
-import { validateToken } from './notion.service'
-import { startPolling, stopPolling, getLastResult } from './poll.coordinator'
-import type { PollResult } from '../shared/ipc-types'
+import { validateToken, archiveTask, completeTask, moveTask } from './notion.service'
+import { startPolling, stopPolling, getLastResult, pollNotion } from './poll.coordinator'
+import type { PollResult, TaskWorkspace } from '../shared/ipc-types'
 import { setupAutoLaunch } from './auto-launch'
 
 let mainWindow: BrowserWindow | null = null
@@ -139,6 +139,8 @@ ipcMain.handle('save-notion-token', async (_event, token: string): Promise<{ ok:
       return { ok: false, error: 'Invalid token — unable to authenticate with Notion' }
     }
     storeNotionToken(token)
+    // Immediately fetch tasks so the dashboard populates without waiting for next poll cycle
+    pollNotion().catch((err) => console.error('[Main] post-token pollNotion failed:', err))
     return { ok: true }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
@@ -169,6 +171,50 @@ ipcMain.handle('trigger-reauth', async (): Promise<void> => {
     throw err
   }
 })
+
+ipcMain.handle(
+  'archive-notion-task',
+  async (_event, taskId: string): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      await archiveTask(taskId)
+      pollNotion().catch((err) => console.error('[Main] post-archive pollNotion failed:', err))
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'complete-notion-task',
+  async (_event, taskId: string, workspace: TaskWorkspace): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      await completeTask(taskId, workspace)
+      pollNotion().catch((err) => console.error('[Main] post-complete pollNotion failed:', err))
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'move-notion-task',
+  async (
+    _event,
+    taskId: string,
+    from: TaskWorkspace,
+    to: TaskWorkspace
+  ): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      await moveTask(taskId, from, to)
+      pollNotion().catch((err) => console.error('[Main] post-move pollNotion failed:', err))
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  }
+)
 
 // Setup auto-launch on login
 setupAutoLaunch()

@@ -11,6 +11,7 @@ export interface AppConfig {
   notion: {
     d8_tasks_db: string
     egg_tasks_db: string
+    bgc_tasks_db: string
   }
   azure: {
     client_id: string
@@ -34,7 +35,8 @@ const DEFAULTS: AppConfig = {
   },
   notion: {
     d8_tasks_db: 'ff6a202b-2ee2-4756-857e-f002bb15a953',
-    egg_tasks_db: '052bcc79-ac77-40f0-a5ad-a99f8e868d30',
+    egg_tasks_db: '814d208b-fc6b-4515-9d8f-29da8bd459f7',
+    bgc_tasks_db: '',
   },
   azure: {
     client_id: '',

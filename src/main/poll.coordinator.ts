@@ -1,6 +1,6 @@
 import { BrowserWindow, powerMonitor } from 'electron'
 import { getCalendarEvents, getInboxData } from './graph.service'
-import { fetchD8Tasks, fetchEggTasks } from './notion.service'
+import { fetchD8Tasks, fetchEggTasks, fetchBgcTasks } from './notion.service'
 import { checkAndFire, scheduleMidnightClear } from './notification.scheduler'
 import { getConfig } from './config'
 import type { PollResult } from '../shared/ipc-types'
@@ -31,6 +31,7 @@ const DEFAULT_POLL_RESULT: PollResult = {
   inbox: { outlookUnread: 0, outlookTopSubjects: [], teamsUnread: null },
   d8Tasks: [],
   eggTasks: [],
+  bgcTasks: [],
 }
 
 /**
@@ -68,29 +69,31 @@ async function pollGraph(): Promise<void> {
 }
 
 /**
- * Poll Notion API (D8 + Egg tasks) and update _lastResult
- * Sends update to renderer via IPC
+ * Poll Notion API (D8 + Egg + BGC tasks) and update _lastResult.
+ * Each database is fetched independently (allSettled, not all) — one broken/unshared
+ * database must not prevent the other two from updating. Failures are logged per-database
+ * and that database's previous data is preserved rather than cleared.
  */
-async function pollNotion(): Promise<void> {
-  try {
-    const [d8Tasks, eggTasks] = await Promise.all([
-      fetchD8Tasks(),
-      fetchEggTasks(),
-    ])
+export async function pollNotion(): Promise<void> {
+  const base = _lastResult ?? DEFAULT_POLL_RESULT
+  const [d8Result, eggResult, bgcResult] = await Promise.allSettled([
+    fetchD8Tasks(),
+    fetchEggTasks(),
+    fetchBgcTasks(),
+  ])
 
-    // Merge into last result, preserving other data
-    _lastResult = {
-      ...(_lastResult ?? DEFAULT_POLL_RESULT),
-      d8Tasks,
-      eggTasks,
-    }
+  const d8Tasks = d8Result.status === 'fulfilled' ? d8Result.value : base.d8Tasks
+  const eggTasks = eggResult.status === 'fulfilled' ? eggResult.value : base.eggTasks
+  const bgcTasks = bgcResult.status === 'fulfilled' ? bgcResult.value : base.bgcTasks
 
-    // Send update to renderer
-    if (_mainWindow && !_mainWindow.isDestroyed()) {
-      _mainWindow.webContents.send('poll-update', _lastResult)
-    }
-  } catch (err) {
-    console.error('[PollCoordinator] pollNotion failed:', err)
+  if (d8Result.status === 'rejected') console.error('[PollCoordinator] fetchD8Tasks failed:', d8Result.reason)
+  if (eggResult.status === 'rejected') console.error('[PollCoordinator] fetchEggTasks failed:', eggResult.reason)
+  if (bgcResult.status === 'rejected') console.error('[PollCoordinator] fetchBgcTasks failed:', bgcResult.reason)
+
+  _lastResult = { ...base, d8Tasks, eggTasks, bgcTasks }
+
+  if (_mainWindow && !_mainWindow.isDestroyed()) {
+    _mainWindow.webContents.send('poll-update', _lastResult)
   }
 }
 
