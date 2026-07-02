@@ -28,6 +28,8 @@ app just to figure out today.
 
 ### 3. Calendar
 - Today's meetings with prep context — this is the existing "D8 Meeting Brief" panel
+- ✅ **Shipped (2026-07-02):** real "Join Meeting" link — fetches `onlineMeeting.joinUrl` from
+  Graph alongside the existing calendar poll, surfaced in the meeting detail panel.
 
 ### 4. Newsletters
 - The Rundown + The Code, surfaced in-app instead of on the phone
@@ -35,7 +37,16 @@ app just to figure out today.
 
 ### 5. Job Radar
 - New matches surfaced from the Egg Morning Brief Notion DB
-- Already on the roadmap as Phase 3
+- Already on the roadmap as Phase 2 (corrected 2026-07-02 — this previously said Phase 3,
+  which contradicted `docs/specs/mission-control.md`'s Phase 2 labeling; Phase 2 is correct)
+- ✅ **Shipped (2026-07-02):** Job Radar has no Notion database of its own — it's written as a
+  block section on the shared Morning Briefing page by Egg_Morning_Brief. `fetchJobRadar()`
+  parses that page's blocks directly (title/company/location/posted/applicants/score/reason/
+  apply link), with a local bookmark toggle. Shows the top 5 roles by design (`TOP_N` config
+  on the Python side), not full coverage of every match found — a deliberate cut, not a gap.
+  Shipped alongside a left-nav + single-canvas redesign (not itself a North Star item — an
+  interaction-model change that gives every panel above full canvas space instead of a
+  cramped column) — see `docs/specs/nav-redesign-design-brief.md`.
 
 ### 6. All-Projects Status Rollup — Full Read/Write Notion Interface
 - Not just a task list — every project (D8, BGC, Egg) with a status: **on track / at risk / off track**
