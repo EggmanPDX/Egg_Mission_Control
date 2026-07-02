@@ -47,6 +47,13 @@ const RadarIcon = () => (
     <circle cx="10" cy="10" r="0.75" fill="currentColor" />
   </svg>
 )
+const NewspaperIcon = () => (
+  <svg {...ICON_PROPS} className="w-[18px] h-[18px]">
+    <rect x="2.5" y="4" width="12" height="12.5" rx="1" />
+    <path d="M14.5 6.5h1.5a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5h-13" />
+    <path d="M5 7.5h6M5 10h6M5 12.5h4" />
+  </svg>
+)
 const GearIcon = () => (
   <svg {...ICON_PROPS} className="w-[16px] h-[16px]">
     <circle cx="10" cy="10" r="2.75" />
@@ -61,6 +68,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'bgc', label: 'BGC Tasks', icon: <LayersIcon /> },
   { id: 'egg', label: 'Egg Tasks', icon: <LeafIcon /> },
   { id: 'jobRadar', label: 'Job Radar', icon: <RadarIcon /> },
+  { id: 'newsletters', label: 'Newsletters', icon: <NewspaperIcon /> },
 ]
 
 interface NavSidebarProps {

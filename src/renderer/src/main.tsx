@@ -42,6 +42,13 @@ if (!window.api) {
       { id: 'job-3', title: 'Head of GTM Enablement', company: 'Nextiva', location: 'Scottsdale, AZ', postedAgo: '4 hours ago', applicants: '<25 applicants', score: 65, reason: 'Head of GTM Enablement, AI-powered CX platform, remote', applyUrl: '#' },
     ],
     jobRadarUpdatedAt: new Date(Date.now() - 3 * 60 * 60000).toISOString(),
+    newsletters: [
+      { name: 'The Rundown', found: true, subject: "🎉 Anthropic's Fable 5 returns worldwide", sender: 'The Rundown AI <news@daily.therundown.ai>', summary: "• Anthropic restarts Fable 5 globally after US lifts export controls\n• US government now gets pre-release access to future models\n• Amazon researchers' findings prompted the original 18-day shutdown" },
+      { name: 'The Neuron', found: true, subject: '😹 Fable 5 first reviews', sender: 'The Neuron <theneuron@newsletter.theneurondaily.com>', summary: "• Fable 5 relaunched but defaults to Opus 4.8 for coding\n• Meta building out a cloud business to compete in AI infra\n• Together AI raised $800M for open-source AI infrastructure" },
+      { name: 'TLDR', found: false },
+      { name: 'The Code', found: true, subject: '🚀 Cognition ships Devin for Security', sender: 'The Code <superhumancode@news.codenewsletter.ai>', summary: '• Cognition launches Devin for Security, an autonomous vuln-triage agent\n• Anthropic drops Claude Sonnet 5 with major coding gains\n• US companies increasingly adopting Chinese open-source models' },
+    ],
+    newslettersUpdatedAt: new Date(Date.now() - 3 * 60 * 60000).toISOString(),
   }
   const noop = () => () => {}
   window.api = {

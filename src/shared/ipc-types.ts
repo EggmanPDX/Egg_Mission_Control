@@ -21,6 +21,14 @@ export interface JobRadarEntry {
   applyUrl: string
 }
 
+export interface NewsletterEntry {
+  name: string             // "The Rundown", "The Neuron", etc.
+  found: boolean           // false when no issue was found in the last 24h
+  subject?: string
+  sender?: string
+  summary?: string         // multi-line bullet text, may contain \n between bullets
+}
+
 export interface NotionTask {
   id: string
   title: string
@@ -52,6 +60,8 @@ export interface PollResult {
   bgcTasks: NotionTask[]
   jobRadar: JobRadarEntry[]
   jobRadarUpdatedAt: string | null  // ISO 8601, parsed from the "Last updated: ..." callout
+  newsletters: NewsletterEntry[]
+  newslettersUpdatedAt: string | null  // ISO 8601, parsed from the "Last updated: ..." callout
 }
 
 export type TaskWorkspace = 'D8' | 'EGG' | 'BGC'

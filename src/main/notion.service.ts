@@ -1,6 +1,6 @@
 import { Client as NotionClient } from '@notionhq/client'
 import type { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints'
-import type { NotionTask, TaskWorkspace, JobRadarEntry } from '../shared/ipc-types'
+import type { NotionTask, TaskWorkspace, JobRadarEntry, NewsletterEntry } from '../shared/ipc-types'
 import { getStoredNotionToken } from './auth.service'
 import { getConfig } from './config'
 import { getMockPollResult, MOCK_MODE } from './mock'
@@ -298,6 +298,7 @@ interface NotionRichText {
   type: string
   plain_text: string
   text?: { link?: { url: string } | null }
+  annotations?: { color?: string }
 }
 
 interface NotionBlock {
@@ -394,4 +395,80 @@ export async function fetchJobRadar(): Promise<{ jobs: JobRadarEntry[]; updatedA
   }
 
   return { jobs, updatedAt }
+}
+
+// ── Newsletter Digest ────────────────────────────────────────────────────────
+// Same situation as Job Radar: no Notion database, just a block section on the shared
+// Morning Briefing page. Egg_Morning_Brief's build_newsletter_digest_blocks() writes one
+// heading_3 per newsletter, followed by either a plain "No issue found" paragraph, or a
+// gray-colored subject-line paragraph + a plain summary paragraph.
+
+const NEWSLETTER_DIGEST_HEADING = 'Newsletter Digest'
+
+function isGraySubjectLine(block: NotionBlock): boolean {
+  const rich = richTextOf(block)
+  return rich.length > 0 && rich[0].annotations?.color === 'gray'
+}
+
+export async function fetchNewsletters(): Promise<{ newsletters: NewsletterEntry[]; updatedAt: string | null }> {
+  if (MOCK_MODE) {
+    const mock = getMockPollResult()
+    return { newsletters: mock.newsletters, updatedAt: mock.newslettersUpdatedAt }
+  }
+
+  const config = getConfig()
+  const pageId = config.notion.morning_briefing_page_id
+  if (!pageId) return { newsletters: [], updatedAt: null }
+
+  const client = getClient()
+  const response = await queryWithRetry(() =>
+    client.blocks.children.list({ block_id: pageId, page_size: 100 })
+  )
+  const blocks = response.results as unknown as NotionBlock[]
+
+  let inSection = false
+  let updatedAt: string | null = null
+  const newsletters: NewsletterEntry[] = []
+  let current: NewsletterEntry | null = null
+  const summaryParts: string[] = []
+
+  function flushCurrent() {
+    if (current) {
+      if (summaryParts.length > 0) current.summary = summaryParts.join('\n\n')
+      newsletters.push(current)
+    }
+    current = null
+    summaryParts.length = 0
+  }
+
+  for (const block of blocks) {
+    if (!inSection) {
+      if (block.type === 'heading_2' && plainTextOf(block).includes(NEWSLETTER_DIGEST_HEADING)) {
+        inSection = true
+      }
+      continue
+    }
+
+    if (SECTION_STOP_TYPES.has(block.type)) break
+
+    if (block.type === 'callout' && updatedAt === null) {
+      updatedAt = parseUpdatedTimestamp(plainTextOf(block))
+    } else if (block.type === 'heading_3') {
+      flushCurrent()
+      current = { name: plainTextOf(block), found: false }
+    } else if (block.type === 'paragraph' && current) {
+      if (isGraySubjectLine(block)) {
+        const [subject, sender] = plainTextOf(block).split('·').map((s) => s.trim())
+        current.found = true
+        current.subject = subject
+        current.sender = sender
+      } else {
+        const text = plainTextOf(block).trim()
+        if (text) summaryParts.push(text)
+      }
+    }
+  }
+  flushCurrent()
+
+  return { newsletters, updatedAt }
 }

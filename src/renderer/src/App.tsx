@@ -3,10 +3,11 @@ import { MeetingBrief } from './panels/MeetingBrief'
 import { TaskPanel } from './panels/TaskPanel'
 import { InboxPulse } from './panels/InboxPulse'
 import { JobRadarPanel } from './panels/JobRadarPanel'
+import { NewsletterPanel } from './panels/NewsletterPanel'
 import { NotionSetup } from './panels/NotionSetup'
 import { NavSidebar } from './components/NavSidebar'
 import { DetailPanel } from './components/DetailPanel'
-import type { PanelState, CalendarEvent, NotionTask, InboxData, JobRadarEntry, PollResult, SelectedItem, NavPanelId } from './types'
+import type { PanelState, CalendarEvent, NotionTask, InboxData, JobRadarEntry, NewsletterEntry, PollResult, SelectedItem, NavPanelId } from './types'
 
 const loading = <T,>(): PanelState<T> => ({ status: { state: 'loading' }, data: null })
 
@@ -18,6 +19,7 @@ const PANEL_TITLES: Record<NavPanelId, string> = {
   bgc: 'BGC Tasks',
   egg: 'Egg Tasks',
   jobRadar: 'Job Radar',
+  newsletters: 'Newsletters',
 }
 
 function loadActivePanel(): NavPanelId {
@@ -40,6 +42,8 @@ export default function App() {
   const [inboxPanel, setInboxPanel] = useState<PanelState<InboxData>>(loading())
   const [jobRadarPanel, setJobRadarPanel] = useState<PanelState<JobRadarEntry[]>>(loading())
   const [jobRadarUpdatedAt, setJobRadarUpdatedAt] = useState<string | null>(null)
+  const [newsletterPanel, setNewsletterPanel] = useState<PanelState<NewsletterEntry[]>>(loading())
+  const [newslettersUpdatedAt, setNewslettersUpdatedAt] = useState<string | null>(null)
 
   // Guards applyPollResult against overwriting a correctly-set 'not-configured' state with a
   // stale cached poll result — isNotionConfigured() and getPollResult() race on mount and can
@@ -79,6 +83,11 @@ export default function App() {
         data: result.jobRadar,
       })
       setJobRadarUpdatedAt(result.jobRadarUpdatedAt)
+      setNewsletterPanel({
+        status: result.newsletters.length === 0 ? { state: 'empty' } : { state: 'ok' },
+        data: result.newsletters,
+      })
+      setNewslettersUpdatedAt(result.newslettersUpdatedAt)
     }
   }, [])
 
@@ -91,6 +100,7 @@ export default function App() {
         setEggTaskPanel({ status: { state: 'not-configured' }, data: null })
         setBgcTaskPanel({ status: { state: 'not-configured' }, data: null })
         setJobRadarPanel({ status: { state: 'not-configured' }, data: null })
+        setNewsletterPanel({ status: { state: 'not-configured' }, data: null })
       }
     })
 
@@ -124,6 +134,7 @@ export default function App() {
     setEggTaskPanel(loading())
     setBgcTaskPanel(loading())
     setJobRadarPanel(loading())
+    setNewsletterPanel(loading())
     // Poll coordinator will pick up Notion token and update on next cycle
   }
 
@@ -158,6 +169,8 @@ export default function App() {
         return <TaskPanel workspace="EGG" label="Egg" panel={eggTaskPanel} selectedItem={selectedItem} onSelect={setSelectedItem} onSetupNotion={() => setShowNotionSetup(true)} onTaskMutated={refreshAfterMutation} />
       case 'jobRadar':
         return <JobRadarPanel panel={jobRadarPanel} updatedAt={jobRadarUpdatedAt} selectedItem={selectedItem} onSelect={setSelectedItem} />
+      case 'newsletters':
+        return <NewsletterPanel panel={newsletterPanel} updatedAt={newslettersUpdatedAt} />
     }
   }
 

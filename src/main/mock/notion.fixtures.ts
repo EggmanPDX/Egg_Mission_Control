@@ -1,4 +1,4 @@
-import type { NotionTask, JobRadarEntry } from '../../shared/ipc-types'
+import type { NotionTask, JobRadarEntry, NewsletterEntry } from '../../shared/ipc-types'
 
 export const MOCK_D8_TASKS: NotionTask[] = [
   { id: 'd8-1', title: 'Finalize Phase 1 delivery doc', priority: 'P1', status: 'In Progress', url: 'https://notion.so/d8-1' },
@@ -47,3 +47,33 @@ export const MOCK_JOB_RADAR: JobRadarEntry[] = [
 ]
 
 export const MOCK_JOB_RADAR_UPDATED_AT = new Date(Date.now() - 3 * 60 * 60000).toISOString()
+
+export const MOCK_NEWSLETTERS: NewsletterEntry[] = [
+  {
+    name: 'The Rundown',
+    found: true,
+    subject: "🎉 Anthropic's Fable 5 returns worldwide",
+    sender: 'The Rundown AI <news@daily.therundown.ai>',
+    summary: "• Anthropic restarts Fable 5 globally after US lifts export controls, with tighter filters\n• US government now gets pre-release access to Anthropic's future models before launch\n• Amazon researchers' security flaw findings prompted original 18-day shutdown of Fable 5",
+  },
+  {
+    name: 'The Neuron',
+    found: true,
+    subject: '😹 Fable 5 first reviews',
+    sender: 'The Neuron <theneuron@newsletter.theneurondaily.com>',
+    summary: "• Anthropic's Fable 5 relaunched after government-forced shutdown, but defaults to Opus 4.8 for coding\n• Meta is aggressively building out a cloud business to compete in AI infrastructure\n• Together AI raised $800M to scale infrastructure for open-source AI models",
+  },
+  {
+    name: 'TLDR',
+    found: false,
+  },
+  {
+    name: 'The Code',
+    found: true,
+    subject: '🚀 Cognition ships Devin for Security',
+    sender: 'The Code <superhumancode@news.codenewsletter.ai>',
+    summary: '• Cognition launches Devin for Security, an autonomous agent for vulnerability triage\n• Anthropic drops Claude Sonnet 5 with major coding benchmark gains\n• US companies increasingly adopting Chinese open-source models for cost reasons',
+  },
+]
+
+export const MOCK_NEWSLETTERS_UPDATED_AT = new Date(Date.now() - 3 * 60 * 60000).toISOString()
