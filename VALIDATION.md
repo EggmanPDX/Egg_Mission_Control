@@ -17,6 +17,7 @@
 | Teams (Graph) | `Chat.Read` returning data; no silent 403s | ✅ 2026-07-02 — Inbox Pulse shows real Teams message previews |
 | Notion | All three task DBs (D8, BGC, Egg) queryable + writable | ✅ 2026-07-02 — read confirmed for all 3; write (complete/move/delete) confirmed by Gregg |
 | Job Radar (Notion, no dedicated DB) | Parses live from the Morning Briefing page's block content | ✅ 2026-07-02 — real data confirmed in packaged app after rebuild; parser skips malformed entries individually rather than failing the whole panel |
+| Newsletter Digest (Notion, no dedicated DB) | Parses live from the same Morning Briefing page's block content | ✅ 2026-07-02 — confirmed with a screenshot of the actual running packaged app (not preview/mock): The Rundown, The Neuron, The Code all showing real multi-story content (4-7 stories each) with working click-to-detail. TLDR removed as dead (never in Gregg's inbox under any address) |
 | Google Drive | (future) auth valid; no stale-token errors | not yet wired (Phase 2) |
 
 **Fail condition:** any source shows an error/stale badge in-app for longer than a
@@ -79,19 +80,23 @@ until its own checklist rows are ✅ (or explicitly accepted as ⚠️ with a re
   real data confirmed in all three panels
 - Ad hoc phase: Notion task read/write (Mark Complete, Move, Delete) + third BGC workspace
   column — ✅ **validated 2026-07-02**, all three actions confirmed working by Gregg
-- Phase 2 (Gmail, newsletters, Job Radar) — Job Radar slice ✅ **validated 2026-07-02**
-  (see Job Radar row in Integration Health above); Gmail and newsletter-in-app still not wired
+- Phase 2 (Gmail, newsletters, Job Radar) — Job Radar and Newsletter Digest slices both
+  ✅ **validated 2026-07-02** (see Integration Health rows above); Gmail still not wired
 - Ad hoc phase: left-nav + single-canvas redesign (all 6 pages) — ✅ **validated 2026-07-02**,
   every panel and interaction (nav switching, task complete/move/delete, job bookmarking,
   detail panels, Join Meeting link) confirmed working in the packaged, rebuilt, re-signed app
+- Ad hoc phase: Newsletter Digest panel (7th nav item) + click-to-detail — ✅ **validated
+  2026-07-02**, confirmed via screenshot of the real running packaged app against live Notion
+  data, not just the mock preview — see Integration Health row above
 - Phase 3 (all-projects rollup, learning layer, skill awareness, workflow learning)
 - Ad hoc phase: AI-drafted email replies + one-click send (Decision #1 in `NORTH_STAR.md`)
 
 **Cadence:** tied to build milestones, not calendar time — no fixed interval.
-**Last run:** 2026-07-02 — Job Radar + left-nav redesign phase validated (see rows/notes above
-in sections 1 and 3). Known open items, unchanged from the prior run: sections 4 (Signal
-Quality — needs Gregg's subjective read on Job Radar fit-score accuracy specifically now, too)
-and 7 (Non-Breakage sleep/wake resilience) are still unverified — haven't run the app across a
-full sleep/wake cycle or multi-day uptime yet. Also new from this phase: Timeliness (section 2)
-not re-verified against logs for the Job Radar poll specifically — code matches the same cycle
-as the other Notion sources, but wasn't watched live across a real interval.
+**Last run:** 2026-07-02 — Newsletter Digest phase validated against the real packaged app via
+screenshot (not just mock preview) — see Integration Health row above. Known open items,
+unchanged from prior runs: sections 4 (Signal Quality — needs Gregg's subjective read on Job
+Radar fit-score accuracy and newsletter story relevance) and 7 (Non-Breakage sleep/wake
+resilience) are still unverified — haven't run the app across a full sleep/wake cycle or
+multi-day uptime yet. Timeliness (section 2) also still not re-verified against logs for the
+Job Radar / Newsletter polls specifically — code matches the same cycle as the other Notion
+sources, but wasn't watched live across a real interval.
