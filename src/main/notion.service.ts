@@ -469,6 +469,8 @@ export async function fetchNewsletters(): Promise<{ newsletters: NewsletterEntry
       }
       const headline = headlineText.trim()
       if (!headline) return []
+      // ponytail: skip error placeholders from old Notion format (e.g. "[Summary error]")
+      if (/^\[.*\]$/.test(headline)) return []
       const gist = gistSegs.map((s) => s.text).join('').trim()
       return [{ headline, headlineUrl, gist, gistSegments: gistSegs.filter((s) => s.text.trim()) }]
     })
