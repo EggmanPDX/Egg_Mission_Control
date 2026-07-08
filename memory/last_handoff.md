@@ -1,31 +1,32 @@
 # Session Handoff
-**Date:** 2026-07-02
-**Project/Workspace:** Personal (Egg — Mission Control)
+**Date:** 2026-07-08
+**Project/Workspace:** Personal (Egg)
 **Session Duration:** Long
 
 ---
 
 ## 🎯 Where This Started
-Gregg wanted to design (via `/grill-me`) a single always-on desktop app for daily visibility. Discovered `Egg_Mission_Control` already existed as a ~90%-built Electron app, but its Phase 1 MVP had never actually worked — Azure Graph auth was broken and Notion had never been properly configured. The session became: fix the real app end-to-end, then extend it.
+Resumed from previous session — newsletters panel showing "No newsletter digest available yet" after app restart, and The Code newsletter showing only 1 article when the actual email has 20+ distinct sections across 7 content blocks.
 
 ---
 
 ## ✅ Decisions Locked
-- Extend Mission Control, don't build new — reuses existing reviewed spec + code
-- Email/chat replies (not yet built): draft + one-click send, human-reviewed every time — never fully auto-sent
-- Notion: full read/write, not a read-only lens — "Notion is where I track work, Mission Control is where I interact with it" (Gregg's words)
-- Validation cadence: phase-gated (run `VALIDATION.md` before/after each build phase), not time-scheduled
-- Job Radar is the first Phase 2 feature to build — lowest lift, reuses existing Notion integration, no new OAuth needed (unlike Gmail)
+
+- **Full HTML iframe is the primary reading experience** — Feedly/Inoreader pattern: render the email, don't try to extract it
+- **NewsletterPanel cards show subject + story count + "Read full issue →"** — no nested article buttons (incomplete lists feel broken)
+- **`max_tokens=8000` in `summarize_newsletter()`** — `claude-sonnet-5` uses extended thinking by default; 2000 tokens was consumed by the thinking block, leaving truncated JSON
+- **Noise cleanup before Claude** — strip `View image:`, `Caption:`, `----------` lines from beehiiv HTML-to-text output before summarization
+- **HTML fallback in `fetch_newsletter()`** — use stripped HTML when `text/plain < 500 chars` (HTML-only newsletters like The Code had empty text/plain)
+- **Google OAuth connected in Mission Control** — `.google-tokens` now present in `~/.mission-control/`
 
 ---
 
 ## 🚢 What Shipped
-- Azure Graph auth fully fixed and verified live — real D8 Meeting Brief (calendar) and D8 Inbox Pulse (Outlook + Teams) data
-- Notion fully fixed and verified live across **all three workspaces** — D8, BGC, and Egg columns all show real tasks
-- New Notion write capability, verified working: **Mark Complete**, **Move Task** (between any two workspaces), **Delete** (archive) — all from the task detail popup
-- `NORTH_STAR.md` and `VALIDATION.md` created at project root — living vision + validation docs, both updated to reflect actual shipped state
-- 11 new tests locking in the 4 real-world Notion schema shapes discovered this session (title property name varies, Status property type varies) — full suite now 47/47 passing, lint clean
-- Committed to git: `abc70d5` — "feat: fix Graph auth end-to-end, add Notion read/write across D8/BGC/Egg" (18 files, not pushed to remote)
+
+- `Egg_Morning_Brief/gmail_client.py` — HTML fallback extraction + beehiiv noise cleanup (commits `57afc96`, `4231486`)
+- `Egg_Morning_Brief/claude_analyzer.py` — 12-article cap, 8000 max_tokens, prompt covers trending/tools/tutorials sections
+- `Egg_Mission_Control/src/renderer/src/panels/NewsletterPanel.tsx` — Feedly-style cards (commit `f88042d`, pushed)
+- `Egg_Mission_Control/src/renderer/src/components/DetailPanel.tsx` — subject/sender strip above HTML iframe
 
 ---
 
@@ -33,50 +34,47 @@ Gregg wanted to design (via `/grill-me`) a single always-on desktop app for dail
 
 | File / Asset | Location | Why It Matters Next Session |
 |---|---|---|
-| `NORTH_STAR.md` | project root | Full vision + what's shipped vs. aspirational — read before any new feature |
-| `VALIDATION.md` | project root | Phase-gated checklist — run relevant sections after Job Radar ships |
-| `docs/specs/mission-control.md` | project root | Original spec's "Phase 2 Preview" section describes Job Radar's original intent |
-| `src/main/notion.service.ts` | project root | Job Radar will need a new `fetchJobRadar()` following the same pattern as `fetchBgcTasks()` — schema-detect, don't assume |
-| `~/.mission-control/config.json` | user home dir | Will need a new `notion.job_radar_db` key once the ID is known |
-| `~/Projects/Egg/Egg_Morning_Brief/` | separate project | Where Job Radar's Notion DB is conceptually owned per existing memory — check here first for the DB ID before asking Gregg |
+| `gmail_client.py` | `~/Projects/Egg/Egg_Morning_Brief/` | Newsletter HTML extraction + noise cleanup |
+| `claude_analyzer.py` | `~/Projects/Egg/Egg_Morning_Brief/` | Summarization — max_tokens critical for sonnet-5 |
+| `NewsletterPanel.tsx` | `src/renderer/src/panels/` | Card UI — Feedly pattern |
+| `DetailPanel.tsx` | `src/renderer/src/components/` | HTML iframe + subject strip |
+| `gmail.service.ts` | `src/main/` | `fetchNewsletterHtmlMap()` — populates newsletter.html |
+| `poll.coordinator.ts` | `src/main/` | Race-condition-fixed concurrent polling |
 
 ---
 
 ## 🔄 Running State
-- **Job Radar:** Not started. Next step: find or ask for the Job Radar Notion database ID, then build `fetchJobRadar()` + a new panel/section following the exact pattern used for BGC today (config key → service fetch function with dynamic schema detection → poll coordinator → IPC → renderer panel).
-- **Gmail integration:** Not started — bigger lift, needs a new Google OAuth flow (comparable scale to the Azure app-registration saga from earlier this session). Do after Job Radar.
-- **Newsletter feed:** Not started — depends on Gmail being wired first per original spec.
-- **Full task editing (title/priority/notes) + task creation from scratch:** Not started — only status/move/delete are wired today.
-- **Project-level status rollup (on track/at risk across all projects):** Not started — separate, bigger data-model question, not just a task-level feature.
 
-Blockers: none currently. App is fully functional at Phase 1 + Notion read/write.
+- **`Egg_Morning_Brief`:** 4 commits ahead of `origin/main`, NOT pushed → Next step: `cd ~/Projects/Egg/Egg_Morning_Brief && git pull --rebase && git push -u origin main`
+- **`Egg_Mission_Control`:** Clean, pushed to `EggmanPDX/Egg_Mission_Control` at `f88042d`
+- **Google OAuth:** Connected — newsletter HTML populates every `pollNotion()` cycle automatically
+- **Morning brief:** Last run 13:37 today, 3/3 newsletters written to Notion with full article counts
+
+Blockers: None.
 
 ---
 
 ## 🖥️ Environment State
-- Working dir: `~/Projects/Egg/Egg_Mission_Control`
-- Branch: `main`, latest commit `abc70d5` (not pushed)
-- Pre-existing unrelated uncommitted WIP still sitting in the working tree (NOT from this session — predates it, left untouched): `package.json`, `package-lock.json`, `src/main/graph.service.ts`, `src/renderer/src/main.tsx`, `src/renderer/src/panels/InboxPulse.tsx`, `src/renderer/src/panels/MeetingBrief.tsx`. Also an untracked `tsconfig.tsbuildinfo` build artifact — harmless, not committed.
-- Packaged app at `dist/mac-arm64/Mission Control.app` — rebuild with `npm run build:unpack` then `codesign --force --deep --sign - "dist/mac-arm64/Mission Control.app"` after any source change (ad-hoc signing required for `safeStorage`/keychain access to keep working across rebuilds)
-- Anything left running: check with `ps aux | grep "Mission Control.app/Contents/MacOS/Mission Control"` — likely a live instance from testing; the app ignores normal quit (`window-all-closed` handler), use `kill -9 <pid>` by PID, not `killall`, if it needs stopping
-- No env vars set this session. No new packages installed.
+
+- Mission Control branch: `main`, clean, pushed
+- Morning Brief branch: `main`, 4 commits ahead of origin — push needed
+- Google OAuth: active (`.google-tokens` in `~/.mission-control/`)
+- Nothing running (dev server started manually during testing; not left running)
 
 ---
 
 ## ❓ Open Questions
-1. Where does Job Radar's Notion data actually live — a database inside `Egg_Morning_Brief`, or somewhere else? — needs: Gregg (check `~/Projects/Egg/Egg_Morning_Brief/CLAUDE.md` or ask directly)
-2. Should Job Radar get its own visible panel/column, or does it belong inside an existing panel (e.g., a section within Notion Tasks)? — needs: Gregg's call, a design decision
-3. Should today's commit be pushed to remote? — needs: Gregg (asked, no answer yet)
-4. Should the stale Notion DB ID references in `~/Projects/Egg/CLAUDE.md` and the global CLAUDE.md's Notion tables be corrected (Egg Tasks ID drifted from `052bcc79-...` to the real `814d208b-...`)? — needs: Gregg, separate housekeeping task, not blocking
+
+No open questions.
 
 ---
 
 ## ▶️ Pick Up From Here
-- Start by: resolving Open Question #1 — find or ask Gregg for the Job Radar Notion database ID
-- Then: follow the exact pattern used for BGC today — add `job_radar_db` to `AppConfig` (`src/main/config.ts`) + `~/.mission-control/config.json`, write `fetchJobRadar()` in `notion.service.ts` reusing `queryDatabase()`'s schema-detection logic (don't assume property names/types — that assumption caused 3 separate bugs today), wire into `poll.coordinator.ts`'s `pollNotion()` alongside the three task fetches, then build the panel/UI
-- Watch for: schema surprises are the norm, not the exception, on this project — every real database so far has differed from what the original spec assumed. Retrieve and inspect the real schema before writing a filter/mapper.
-- Watch for: the app auto-opens a browser tab is now FIXED — don't reintroduce interactive auth calls from background poll code (see `AuthRequiredError` pattern in `src/main/auth.service.ts`)
-- Don't: assume a database ID or schema — every fabricated/assumed ID this session turned out wrong (stale Egg Tasks ID, wrong title property name, wrong status property type). Verify against the real Notion database every time.
+
+- **Start by:** Push `Egg_Morning_Brief` — `cd ~/Projects/Egg/Egg_Morning_Brief && git pull --rebase && git push -u origin main`
+- **Then:** Run morning brief manually (`python3 morning_brief_worker.py`) after any newsletter date changes to refresh Notion
+- **Watch for:** If newsletter HTML stops appearing in Mission Control, the Google refresh token may have expired — re-click the Gmail pill in the titlebar to re-auth
+- **Don't:** Set `max_tokens < 6000` for `summarize_newsletter()` — `claude-sonnet-5` extended thinking eats the budget silently and returns truncated JSON with no error
 
 ---
 
