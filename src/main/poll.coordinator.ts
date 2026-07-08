@@ -56,22 +56,24 @@ export function getLastResult(): PollResult | null {
  * block Outlook calendar/inbox from updating.
  */
 export async function pollGraph(): Promise<void> {
-  const base = _lastResult ?? DEFAULT_POLL_RESULT
+  // ponytail: capture fallback at start (for per-field fallback on failure), but merge into
+  // CURRENT _lastResult at end to avoid overwriting concurrent pollNotion() data
+  const fallback = _lastResult ?? DEFAULT_POLL_RESULT
   const [calendarResult, inboxResult, gmailResult] = await Promise.allSettled([
     getCalendarEvents(),
     getInboxData(),
     getGmailInboxData(),
   ])
 
-  const calendar = calendarResult.status === 'fulfilled' ? calendarResult.value : base.calendar
-  const inbox = inboxResult.status === 'fulfilled' ? inboxResult.value : base.inbox
-  const gmail = gmailResult.status === 'fulfilled' ? gmailResult.value : base.gmail
+  const calendar = calendarResult.status === 'fulfilled' ? calendarResult.value : fallback.calendar
+  const inbox = inboxResult.status === 'fulfilled' ? inboxResult.value : fallback.inbox
+  const gmail = gmailResult.status === 'fulfilled' ? gmailResult.value : fallback.gmail
 
   if (calendarResult.status === 'rejected') console.error('[PollCoordinator] getCalendarEvents failed:', calendarResult.reason)
   if (inboxResult.status === 'rejected') console.error('[PollCoordinator] getInboxData failed:', inboxResult.reason)
   if (gmailResult.status === 'rejected') console.error('[PollCoordinator] getGmailInboxData failed:', gmailResult.reason)
 
-  _lastResult = { ...base, calendar, inbox, gmail }
+  _lastResult = { ...(_lastResult ?? DEFAULT_POLL_RESULT), calendar, inbox, gmail }
 
   if (_mainWindow && !_mainWindow.isDestroyed()) {
     // Send auth state BEFORE poll-update so the renderer knows auth state when applying calendar data
@@ -91,7 +93,9 @@ export async function pollGraph(): Promise<void> {
  * and that database's previous data is preserved rather than cleared.
  */
 export async function pollNotion(): Promise<void> {
-  const base = _lastResult ?? DEFAULT_POLL_RESULT
+  // ponytail: capture fallback at start (for per-field fallback on failure), but merge into
+  // CURRENT _lastResult at end to avoid overwriting concurrent pollGraph() data
+  const fallback = _lastResult ?? DEFAULT_POLL_RESULT
   const [d8Result, eggResult, bgcResult, jobRadarResult, newslettersResult] = await Promise.allSettled([
     fetchD8Tasks(),
     fetchEggTasks(),
@@ -100,13 +104,13 @@ export async function pollNotion(): Promise<void> {
     fetchNewsletters(),
   ])
 
-  const d8Tasks = d8Result.status === 'fulfilled' ? d8Result.value : base.d8Tasks
-  const eggTasks = eggResult.status === 'fulfilled' ? eggResult.value : base.eggTasks
-  const bgcTasks = bgcResult.status === 'fulfilled' ? bgcResult.value : base.bgcTasks
-  const jobRadar = jobRadarResult.status === 'fulfilled' ? jobRadarResult.value.jobs : base.jobRadar
-  const jobRadarUpdatedAt = jobRadarResult.status === 'fulfilled' ? jobRadarResult.value.updatedAt : base.jobRadarUpdatedAt
-  let newsletters = newslettersResult.status === 'fulfilled' ? newslettersResult.value.newsletters : base.newsletters
-  const newslettersUpdatedAt = newslettersResult.status === 'fulfilled' ? newslettersResult.value.updatedAt : base.newslettersUpdatedAt
+  const d8Tasks = d8Result.status === 'fulfilled' ? d8Result.value : fallback.d8Tasks
+  const eggTasks = eggResult.status === 'fulfilled' ? eggResult.value : fallback.eggTasks
+  const bgcTasks = bgcResult.status === 'fulfilled' ? bgcResult.value : fallback.bgcTasks
+  const jobRadar = jobRadarResult.status === 'fulfilled' ? jobRadarResult.value.jobs : fallback.jobRadar
+  const jobRadarUpdatedAt = jobRadarResult.status === 'fulfilled' ? jobRadarResult.value.updatedAt : fallback.jobRadarUpdatedAt
+  let newsletters = newslettersResult.status === 'fulfilled' ? newslettersResult.value.newsletters : fallback.newsletters
+  const newslettersUpdatedAt = newslettersResult.status === 'fulfilled' ? newslettersResult.value.updatedAt : fallback.newslettersUpdatedAt
 
   // Enrich newsletter entries with full HTML fetched directly from Gmail
   try {
@@ -122,7 +126,7 @@ export async function pollNotion(): Promise<void> {
   if (jobRadarResult.status === 'rejected') console.error('[PollCoordinator] fetchJobRadar failed:', jobRadarResult.reason)
   if (newslettersResult.status === 'rejected') console.error('[PollCoordinator] fetchNewsletters failed:', newslettersResult.reason)
 
-  _lastResult = { ...base, d8Tasks, eggTasks, bgcTasks, jobRadar, jobRadarUpdatedAt, newsletters, newslettersUpdatedAt }
+  _lastResult = { ...(_lastResult ?? DEFAULT_POLL_RESULT), d8Tasks, eggTasks, bgcTasks, jobRadar, jobRadarUpdatedAt, newsletters, newslettersUpdatedAt }
 
   if (_mainWindow && !_mainWindow.isDestroyed()) {
     _mainWindow.webContents.send('poll-update', _lastResult)
