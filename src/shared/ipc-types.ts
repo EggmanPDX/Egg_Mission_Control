@@ -7,6 +7,7 @@ export interface CalendarEvent {
   webLink?: string
   body?: string        // plain-text agenda/description
   joinUrl?: string      // direct Teams/Zoom join link, when the event is an online meeting
+  isPending?: boolean  // true when responseStatus.response is "none" (no response yet)
 }
 
 export interface JobRadarEntry {
@@ -52,6 +53,12 @@ export interface InboxData {
   recentChats: ChatMessage[]
 }
 
+export interface GmailInboxData {
+  email: string        // which connected Gmail account this is
+  unread: number
+  topSubjects: Array<{ subject: string; from: string }>
+}
+
 export interface PollResult {
   calendar: CalendarEvent[]
   inbox: InboxData
@@ -62,6 +69,7 @@ export interface PollResult {
   jobRadarUpdatedAt: string | null  // ISO 8601, parsed from the "Last updated: ..." callout
   newsletters: NewsletterEntry[]
   newslettersUpdatedAt: string | null  // ISO 8601, parsed from the "Last updated: ..." callout
+  gmail: GmailInboxData[]  // one entry per connected Gmail account
 }
 
 export type TaskWorkspace = 'D8' | 'EGG' | 'BGC'
@@ -73,10 +81,13 @@ export interface IpcChannels {
   'validate-notion-token': (token: string) => Promise<{ ok: boolean; error?: string }>
   'is-notion-configured': () => Promise<boolean>
   'trigger-reauth': () => Promise<void>
+  'is-google-configured': () => Promise<boolean>
+  'get-connected-google-accounts': () => Promise<string[]>
+  'trigger-google-reauth': () => Promise<{ ok: boolean; email?: string; error?: string }>
   'archive-notion-task': (taskId: string) => Promise<{ ok: boolean; error?: string }>
   'complete-notion-task': (taskId: string, workspace: TaskWorkspace) => Promise<{ ok: boolean; error?: string }>
   'move-notion-task': (taskId: string, from: TaskWorkspace, to: TaskWorkspace) => Promise<{ ok: boolean; error?: string }>
   // main → renderer (push events)
   'poll-update': PollResult
-  'auth-state-change': { msGraphAuthed: boolean; notionConfigured: boolean }
+  'auth-state-change': { msGraphAuthed: boolean; notionConfigured: boolean; googleAuthed: boolean }
 }

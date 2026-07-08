@@ -115,9 +115,11 @@ function EventList({ events, dimmed, onSelect }: { events: CalendarEvent[]; dimm
               key={event.id}
               onClick={() => onSelect(event)}
               className={`w-full text-left rounded-mc-md p-2.5 border-l-[3px] transition-opacity focus:outline-none
-                ${isNext
-                  ? 'bg-mc-pill-blue-bg border-mc-d8 hover:brightness-95'
-                  : 'bg-transparent border-mc-canvas-border hover:bg-mc-canvas-alt'}
+                ${event.isPending
+                  ? 'bg-mc-canvas-alt border-mc-stale hover:brightness-95'
+                  : isNext
+                    ? 'bg-mc-pill-blue-bg border-mc-d8 hover:brightness-95'
+                    : 'bg-transparent border-mc-canvas-border hover:bg-mc-canvas-alt'}
                 ${isPast ? 'opacity-50' : ''}
                 ${dimmed ? 'opacity-50' : ''}`}
             >
@@ -125,7 +127,12 @@ function EventList({ events, dimmed, onSelect }: { events: CalendarEvent[]; dimm
                 <span className={`text-mc-xs uppercase font-bold font-mono ${isNext ? 'text-mc-d8' : 'text-mc-ink-muted'} ${isPast ? 'line-through' : ''}`}>
                   {new Date(event.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                 </span>
-                {isNext && (
+                {event.isPending && (
+                  <span className="text-mc-xs font-bold text-mc-stale bg-mc-canvas px-1.5 py-0.5 rounded-mc-sm border border-mc-stale">
+                    INVITE
+                  </span>
+                )}
+                {isNext && !event.isPending && (
                   <span className="text-mc-sm font-bold text-mc-d8 bg-mc-pill-blue-bg px-1.5 py-0.5 rounded-mc-sm">
                     ⏱ {formatCountdown(event.start)}
                   </span>

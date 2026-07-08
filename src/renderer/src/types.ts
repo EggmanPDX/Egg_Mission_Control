@@ -11,7 +11,7 @@ export interface PanelState<T> {
   data: T | null
 }
 
-export type { CalendarEvent, NotionTask, InboxData, PollResult, TaskWorkspace, JobRadarEntry, ChatMessage, NewsletterEntry } from '../../shared/ipc-types'
+export type { CalendarEvent, NotionTask, InboxData, GmailInboxData, PollResult, TaskWorkspace, JobRadarEntry, ChatMessage, NewsletterEntry } from '../../shared/ipc-types'
 
 import type { CalendarEvent, NotionTask, ChatMessage, TaskWorkspace, JobRadarEntry, NewsletterEntry } from '../../shared/ipc-types'
 

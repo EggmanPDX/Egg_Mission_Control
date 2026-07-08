@@ -1,13 +1,23 @@
-import { app, BrowserWindow, ipcMain, shell, protocol } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, protocol, Menu } from 'electron'
 import { join } from 'path'
 import { loadConfig } from './config'
 import { handleAuthCallback, getStoredNotionToken, storeNotionToken, triggerReauth } from './auth.service'
+import { isGoogleConfigured, triggerGoogleReauth, getConnectedGoogleAccounts } from './google-auth.service'
 import { validateToken, archiveTask, completeTask, moveTask } from './notion.service'
-import { startPolling, stopPolling, getLastResult, pollNotion } from './poll.coordinator'
+import { startPolling, stopPolling, getLastResult, pollNotion, pollGraph } from './poll.coordinator'
 import type { PollResult, TaskWorkspace } from '../shared/ipc-types'
 import { setupAutoLaunch } from './auto-launch'
 
+// Enforce single instance — second launch focuses the existing window instead
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+  process.exit(0)
+}
+
+app.setName('Mission Control')
+
 let mainWindow: BrowserWindow | null = null
+let isQuiting = false
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -26,8 +36,9 @@ function createWindow(): void {
     mainWindow?.show()
   })
 
-  // Hide window instead of closing (keep app running in background)
+  // Hide window instead of closing (keep app running in background); allow quit via Cmd+Q
   mainWindow.on('close', (event) => {
+    if (isQuiting) return
     event.preventDefault()
     mainWindow?.hide()
   })
@@ -53,47 +64,47 @@ function createWindow(): void {
   })
 }
 
-// Register custom protocol for OAuth callback (production, non-mock only)
-if (process.env.NODE_ENV !== 'development' && process.env.MISSION_CONTROL_MOCK !== 'true') {
+// Register custom protocol for OAuth callback (all modes except mock)
+if (process.env.MISSION_CONTROL_MOCK !== 'true') {
   protocol?.registerSchemesAsPrivileged([
     { scheme: 'missioncontrol', privileges: { secure: true, standard: true } },
   ])
 }
 
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
+  }
+})
+
 app.whenReady().then(() => {
   // Load config before creating window
   loadConfig()
 
-  // Register custom protocol handler for OAuth
-  if (process.env.NODE_ENV !== 'development') {
-    app.on('open-url', (event, url) => {
-      event.preventDefault()
+  // Handle missioncontrol:// OAuth callback in all modes
+  app.setAsDefaultProtocolClient('missioncontrol')
+  app.on('open-url', (event, url) => {
+    event.preventDefault()
+    if (url.startsWith('missioncontrol://')) {
       handleAuthCallback(url).catch((err) => {
         console.error('[Main] handleAuthCallback failed:', err)
       })
-      // Show window after successful auth
       if (mainWindow) {
         mainWindow.show()
         mainWindow.focus()
       }
-    })
-  }
+    }
+  })
 
-  // Also register for dev mode (localhost redirect)
-  if (process.env.NODE_ENV === 'development') {
-    app.on('open-url', (event, url) => {
-      event.preventDefault()
-      if (url.startsWith('http://localhost')) {
-        handleAuthCallback(url).catch((err) => {
-          console.error('[Main] handleAuthCallback (dev) failed:', err)
-        })
-        if (mainWindow) {
-          mainWindow.show()
-          mainWindow.focus()
-        }
-      }
-    })
-  }
+  // Rebuild app menu so macOS menu bar shows "Mission Control" instead of the bundle name "Electron"
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    { role: 'appMenu' },
+    { role: 'editMenu' },
+    { role: 'viewMenu' },
+    { role: 'windowMenu' },
+  ]))
 
   createWindow()
 
@@ -114,6 +125,7 @@ app.on('window-all-closed', () => {
 
 // Stop polling when app is about to quit
 app.on('before-quit', () => {
+  isQuiting = true
   stopPolling()
 })
 
@@ -161,14 +173,39 @@ ipcMain.handle('validate-notion-token', async (_event, token: string): Promise<{
 ipcMain.handle('trigger-reauth', async (): Promise<void> => {
   try {
     await triggerReauth()
-    // Show window after successful auth
     if (mainWindow) {
       mainWindow.show()
       mainWindow.focus()
     }
+    // Immediately fetch fresh data now that we have a token
+    pollGraph().catch((err) => console.error('[Main] post-reauth pollGraph failed:', err))
   } catch (err) {
     console.error('[Main] triggerReauth failed:', err)
     throw err
+  }
+})
+
+ipcMain.handle('is-google-configured', async (): Promise<boolean> => {
+  return isGoogleConfigured()
+})
+
+ipcMain.handle('get-connected-google-accounts', async (): Promise<string[]> => {
+  return getConnectedGoogleAccounts()
+})
+
+ipcMain.handle('trigger-google-reauth', async (): Promise<{ ok: boolean; email?: string; error?: string }> => {
+  try {
+    const { email } = await triggerGoogleReauth()
+    if (mainWindow) {
+      mainWindow.show()
+      mainWindow.focus()
+    }
+    // Immediately fetch Gmail so the dashboard populates without waiting for next poll cycle
+    pollGraph().catch((err) => console.error('[Main] post-google-auth pollGraph failed:', err))
+    return { ok: true, email }
+  } catch (err) {
+    console.error('[Main] triggerGoogleReauth failed:', err)
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
   }
 })
 

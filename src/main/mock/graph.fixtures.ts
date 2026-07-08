@@ -1,4 +1,4 @@
-import type { CalendarEvent, InboxData, ChatMessage } from '../../shared/ipc-types'
+import type { CalendarEvent, InboxData, GmailInboxData, ChatMessage } from '../../shared/ipc-types'
 
 const now = new Date()
 const todayStr = now.toISOString().split('T')[0]
@@ -33,6 +33,15 @@ export const MOCK_CALENDAR: CalendarEvent[] = [
     attendees: ['MJ'],
     webLink: 'https://teams.microsoft.com/l/meetup-join/mock3',
   },
+  {
+    id: 'evt-004',
+    subject: 'Kickoff: Phase 2 Scope',
+    start: todayAt(17, 0),
+    end: todayAt(17, 30),
+    attendees: ['Connor', 'Priya'],
+    webLink: 'https://teams.microsoft.com/l/meetup-join/mock4',
+    isPending: true,
+  },
 ]
 
 const MOCK_CHATS: ChatMessage[] = [
@@ -50,3 +59,23 @@ export const MOCK_INBOX: InboxData = {
   teamsUnread: 4,
   recentChats: MOCK_CHATS,
 }
+
+export const MOCK_GMAIL: GmailInboxData[] = [
+  {
+    email: 'gdogsjunk@gmail.com',
+    unread: 7,
+    topSubjects: [
+      { subject: 'Your Amazon order has shipped', from: 'Amazon' },
+      { subject: 'Reminder: dentist appointment tomorrow', from: 'Dr. Chen Office' },
+      { subject: 'Weekly digest: 12 new stories', from: 'Substack' },
+    ],
+  },
+  {
+    email: 'gregg@buildgreatcourses.com',
+    unread: 3,
+    topSubjects: [
+      { subject: 'Invoice #4521 paid', from: 'Stripe' },
+      { subject: 'New client inquiry: onboarding program', from: 'Squarespace Forms' },
+    ],
+  },
+]

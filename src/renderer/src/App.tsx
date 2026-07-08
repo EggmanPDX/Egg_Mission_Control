@@ -7,7 +7,7 @@ import { NewsletterPanel } from './panels/NewsletterPanel'
 import { NotionSetup } from './panels/NotionSetup'
 import { NavSidebar } from './components/NavSidebar'
 import { DetailPanel } from './components/DetailPanel'
-import type { PanelState, CalendarEvent, NotionTask, InboxData, JobRadarEntry, NewsletterEntry, PollResult, SelectedItem, NavPanelId } from './types'
+import type { PanelState, CalendarEvent, NotionTask, InboxData, GmailInboxData, JobRadarEntry, NewsletterEntry, PollResult, SelectedItem, NavPanelId } from './types'
 
 const loading = <T,>(): PanelState<T> => ({ status: { state: 'loading' }, data: null })
 
@@ -32,6 +32,7 @@ export default function App() {
   const [activePanel, setActivePanelState] = useState<NavPanelId>(loadActivePanel)
   const [showNotionSetup, setShowNotionSetup] = useState(false)
   const [msGraphAuthed, setMsGraphAuthed] = useState(false)
+  const [googleAuthed, setGoogleAuthed] = useState(false)
   const [flashDots, setFlashDots] = useState(false)
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null)
 
@@ -40,6 +41,7 @@ export default function App() {
   const [eggTaskPanel, setEggTaskPanel] = useState<PanelState<NotionTask[]>>(loading())
   const [bgcTaskPanel, setBgcTaskPanel] = useState<PanelState<NotionTask[]>>(loading())
   const [inboxPanel, setInboxPanel] = useState<PanelState<InboxData>>(loading())
+  const [gmailPanel, setGmailPanel] = useState<PanelState<GmailInboxData[]>>(loading())
   const [jobRadarPanel, setJobRadarPanel] = useState<PanelState<JobRadarEntry[]>>(loading())
   const [jobRadarUpdatedAt, setJobRadarUpdatedAt] = useState<string | null>(null)
   const [newsletterPanel, setNewsletterPanel] = useState<PanelState<NewsletterEntry[]>>(loading())
@@ -49,6 +51,9 @@ export default function App() {
   // stale cached poll result — isNotionConfigured() and getPollResult() race on mount and can
   // resolve in either order.
   const notionConfiguredRef = useRef<boolean>(false)
+  const googleConfiguredRef = useRef<boolean>(false)
+  // Ref so applyPollResult (useCallback []) can read current auth state without stale closure
+  const msGraphAuthedRef = useRef<boolean>(false)
 
   function setActivePanel(id: NavPanelId) {
     setActivePanelState(id)
@@ -57,14 +62,22 @@ export default function App() {
   }
 
   const applyPollResult = useCallback((result: PollResult) => {
-    setMeetingPanel({
-      status: result.calendar.length === 0 ? { state: 'empty' } : { state: 'ok' },
-      data: result.calendar,
-    })
+    const calendarStatus = result.calendar.length > 0
+      ? { state: 'ok' as const }
+      : msGraphAuthedRef.current
+        ? { state: 'empty' as const }
+        : { state: 'error' as const, message: 'auth', lastUpdated: null }
+    setMeetingPanel({ status: calendarStatus, data: result.calendar })
     setInboxPanel({
       status: result.inbox.outlookUnread === 0 ? { state: 'empty' } : { state: 'ok' },
       data: result.inbox,
     })
+    if (googleConfiguredRef.current) {
+      setGmailPanel({
+        status: result.gmail.length === 0 ? { state: 'empty' } : { state: 'ok' },
+        data: result.gmail,
+      })
+    }
     if (notionConfiguredRef.current) {
       setD8TaskPanel({
         status: result.d8Tasks.length === 0 ? { state: 'empty' } : { state: 'ok' },
@@ -104,6 +117,15 @@ export default function App() {
       }
     })
 
+    // Check Google (Gmail) config on mount
+    window.api.isGoogleConfigured().then(configured => {
+      googleConfiguredRef.current = configured
+      setGoogleAuthed(configured)
+      if (!configured) {
+        setGmailPanel({ status: { state: 'not-configured' }, data: null })
+      }
+    })
+
     // Load initial poll result
     window.api.getPollResult().then(result => {
       if (result) applyPollResult(result)
@@ -112,8 +134,16 @@ export default function App() {
     // Subscribe to push updates
     const unsubPoll = window.api.onPollUpdate(applyPollResult)
     const unsubAuth = window.api.onAuthStateChange(({ msGraphAuthed: authed, notionConfigured: nc }) => {
+      msGraphAuthedRef.current = authed
       setMsGraphAuthed(authed)
       notionConfiguredRef.current = nc
+      if (!authed) {
+        setMeetingPanel(prev =>
+          prev.status.state === 'ok' || prev.status.state === 'loading'
+            ? { status: { state: 'error', message: 'auth', lastUpdated: null }, data: null }
+            : prev
+        )
+      }
       if (authed) {
         // Flash dots for 1 second on first successful auth
         setFlashDots(true)
@@ -138,6 +168,22 @@ export default function App() {
     // Poll coordinator will pick up Notion token and update on next cycle
   }
 
+  // Connects one Gmail account. Safe to call again to add a 2nd/3rd account — each call
+  // adds or refreshes one account (by email) without disconnecting previously connected ones.
+  const handleGoogleReauth = async () => {
+    const result = await window.api.triggerGoogleReauth()
+    if (result.ok) {
+      googleConfiguredRef.current = true
+      setGoogleAuthed(true)
+      setGmailPanel(loading())
+      // Poll coordinator's post-auth pollGraph() will populate this shortly; also refresh now
+      // in case that resolves before the next getPollResult call would naturally happen.
+      window.api.getPollResult().then(r => { if (r) applyPollResult(r) })
+    } else {
+      console.error('[App] Google reauth failed:', result.error)
+    }
+  }
+
   // Re-fetches the current poll result after a task mutation (archive/complete/move) so the
   // panels reflect the change immediately rather than waiting for the next poll interval.
   const refreshAfterMutation = useCallback(() => {
@@ -160,7 +206,7 @@ export default function App() {
       case 'meeting':
         return <MeetingBrief panel={meetingPanel} flashAuthDot={flashDots} onSelect={item => setSelectedItem({ type: 'calendar', data: item })} />
       case 'inbox':
-        return <InboxPulse panel={inboxPanel} flashAuthDot={flashDots} onSelect={setSelectedItem} />
+        return <InboxPulse panel={inboxPanel} gmailPanel={gmailPanel} flashAuthDot={flashDots} onSelect={setSelectedItem} onConnectGmail={handleGoogleReauth} />
       case 'd8':
         return <TaskPanel workspace="D8" label="D8" panel={d8TaskPanel} selectedItem={selectedItem} onSelect={setSelectedItem} onSetupNotion={() => setShowNotionSetup(true)} onTaskMutated={refreshAfterMutation} />
       case 'bgc':
@@ -191,6 +237,15 @@ export default function App() {
                 : 'text-mc-error border-mc-error border-opacity-25 bg-mc-error bg-opacity-10 hover:bg-opacity-20'}`}
           >
             D8
+          </button>
+          <button
+            onClick={handleGoogleReauth}
+            className={`text-mc-xs font-bold uppercase px-2 py-0.5 rounded-mc-sm border focus:outline-none
+              ${googleAuthed
+                ? 'text-mc-d8 border-mc-D8-border bg-mc-D8-bg hover:brightness-110'
+                : 'text-mc-error border-mc-error border-opacity-25 bg-mc-error bg-opacity-10 hover:bg-opacity-20'}`}
+          >
+            Gmail
           </button>
           <span className="text-mc-xs font-bold uppercase text-mc-egg bg-mc-egg-bg border border-mc-egg-border px-2 py-0.5 rounded-mc-sm">
             EGG

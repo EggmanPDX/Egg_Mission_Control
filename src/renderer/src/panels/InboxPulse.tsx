@@ -1,15 +1,17 @@
 import { PanelHeader } from '../components/PanelHeader'
 import { SkeletonBars } from '../components/SkeletonBars'
-import type { PanelState, InboxData, ChatMessage } from '../types'
+import type { PanelState, InboxData, GmailInboxData, ChatMessage } from '../types'
 import type { SelectedItem } from '../types'
 
 interface InboxPulseProps {
   panel: PanelState<InboxData>
+  gmailPanel: PanelState<GmailInboxData[]>
   flashAuthDot?: boolean
   onSelect: (item: SelectedItem) => void
+  onConnectGmail: () => void
 }
 
-export function InboxPulse({ panel, flashAuthDot, onSelect }: InboxPulseProps) {
+export function InboxPulse({ panel, gmailPanel, flashAuthDot, onSelect, onConnectGmail }: InboxPulseProps) {
   const { status } = panel
 
   const dotState = status.state === 'error' ? 'error'
@@ -51,16 +53,12 @@ export function InboxPulse({ panel, flashAuthDot, onSelect }: InboxPulseProps) {
           </div>
         )}
 
-        {(status.state === 'ok' || status.state === 'stale' || (status.state === 'error' && status.message !== 'auth')) && panel.data && (
+        {(status.state === 'ok' || status.state === 'stale' || status.state === 'empty' || (status.state === 'error' && status.message !== 'auth')) && panel.data && (
           <InboxContent data={panel.data} onSelect={onSelect} />
         )}
-
-        {status.state === 'empty' && (
-          <div className="flex items-center justify-center h-full text-mc-ink-muted text-mc-sm">
-            Outlook is clear.
-          </div>
-        )}
       </div>
+
+      <GmailBlock panel={gmailPanel} onSelect={onSelect} onConnect={onConnectGmail} />
     </section>
   )
 }
@@ -116,6 +114,84 @@ function InboxContent({ data, onSelect }: { data: InboxData; onSelect: (item: Se
         {(!data.recentChats || data.recentChats.length === 0) && (
           <div className="px-3 pb-3 text-mc-xs text-mc-ink-faint">Chat.Read · DMs + group only</div>
         )}
+      </div>
+    </div>
+  )
+}
+
+function GmailBlock({
+  panel,
+  onSelect,
+  onConnect,
+}: {
+  panel: PanelState<GmailInboxData[]>
+  onSelect: (item: SelectedItem) => void
+  onConnect: () => void
+}) {
+  const { status } = panel
+
+  if (status.state === 'not-configured') {
+    return (
+      <div className="border-t border-mc-canvas-border px-3 py-3 flex-shrink-0 flex items-center justify-between">
+        <div>
+          <div className="text-mc-sm font-semibold text-mc-ink">Gmail</div>
+          <div className="text-mc-xs text-mc-ink-muted">Not connected</div>
+        </div>
+        <button
+          onClick={onConnect}
+          className="text-mc-sm bg-mc-pill-blue-bg text-mc-d8 rounded-mc-md px-3 py-1.5 hover:brightness-95 focus:outline-none focus:ring-1 focus:ring-mc-d8"
+        >
+          Connect Gmail →
+        </button>
+      </div>
+    )
+  }
+
+  if (status.state === 'loading') {
+    return (
+      <div className="border-t border-mc-canvas-border flex-shrink-0">
+        <SkeletonBars count={2} />
+      </div>
+    )
+  }
+
+  const accounts = panel.data
+  if (!accounts) return null
+
+  return (
+    <div className="flex-shrink-0">
+      {accounts.map((account) => (
+        <div key={account.email} className="border-t border-mc-canvas-border">
+          <div className="px-3 pt-3 pb-1 flex items-baseline justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-mc-lg font-tabular text-mc-ink">{account.unread}</div>
+              <div className="text-mc-sm text-mc-ink-muted -mt-0.5">unread Gmail</div>
+            </div>
+            <div className="text-mc-xs text-mc-ink-faint uppercase tracking-widest truncate">{account.email}</div>
+          </div>
+          {account.topSubjects.length > 0 && (
+            <div className="px-3 pb-3 flex flex-col">
+              {account.topSubjects.map((item, i) => (
+                <button
+                  key={i}
+                  onClick={() => onSelect({ type: 'inbox', data: item })}
+                  className="w-full text-left py-1.5 border-b border-mc-canvas-border last:border-0 hover:bg-mc-canvas-alt px-1 -mx-1 rounded-mc-sm focus:outline-none"
+                >
+                  <div className="text-mc-xs text-mc-ink-muted uppercase tracking-widest truncate">{item.from}</div>
+                  <div className="text-mc-base text-mc-ink truncate">{item.subject}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      <div className="border-t border-mc-canvas-border px-3 py-2">
+        <button
+          onClick={onConnect}
+          className="text-mc-xs font-bold uppercase tracking-widest text-mc-d8 hover:underline focus:outline-none"
+        >
+          + Add another Gmail account
+        </button>
       </div>
     </div>
   )

@@ -1,8 +1,11 @@
 import { BrowserWindow, powerMonitor } from 'electron'
 import { getCalendarEvents, getInboxData } from './graph.service'
+import { getGmailInboxData } from './gmail.service'
 import { fetchD8Tasks, fetchEggTasks, fetchBgcTasks, fetchJobRadar, fetchNewsletters } from './notion.service'
 import { checkAndFire, scheduleMidnightClear } from './notification.scheduler'
 import { getConfig } from './config'
+import { isAuthed, getStoredNotionToken } from './auth.service'
+import { isGoogleConfigured } from './google-auth.service'
 import type { PollResult } from '../shared/ipc-types'
 
 /**
@@ -36,6 +39,7 @@ const DEFAULT_POLL_RESULT: PollResult = {
   jobRadarUpdatedAt: null,
   newsletters: [],
   newslettersUpdatedAt: null,
+  gmail: [],
 }
 
 /**
@@ -46,29 +50,37 @@ export function getLastResult(): PollResult | null {
 }
 
 /**
- * Poll Graph API (calendar + inbox) and update _lastResult
- * Sends update to renderer via IPC
+ * Poll Graph (calendar + inbox) and Gmail, and update _lastResult.
+ * Each source is fetched independently (allSettled, not all) — Gmail commonly starts
+ * unauthenticated (it's opt-in, separate from the Microsoft sign-in), and that must not
+ * block Outlook calendar/inbox from updating.
  */
-async function pollGraph(): Promise<void> {
-  try {
-    const [calendar, inbox] = await Promise.all([
-      getCalendarEvents(),
-      getInboxData(),
-    ])
+export async function pollGraph(): Promise<void> {
+  const base = _lastResult ?? DEFAULT_POLL_RESULT
+  const [calendarResult, inboxResult, gmailResult] = await Promise.allSettled([
+    getCalendarEvents(),
+    getInboxData(),
+    getGmailInboxData(),
+  ])
 
-    // Merge into last result, preserving other data
-    _lastResult = {
-      ...(_lastResult ?? DEFAULT_POLL_RESULT),
-      calendar,
-      inbox,
-    }
+  const calendar = calendarResult.status === 'fulfilled' ? calendarResult.value : base.calendar
+  const inbox = inboxResult.status === 'fulfilled' ? inboxResult.value : base.inbox
+  const gmail = gmailResult.status === 'fulfilled' ? gmailResult.value : base.gmail
 
-    // Send update to renderer
-    if (_mainWindow && !_mainWindow.isDestroyed()) {
-      _mainWindow.webContents.send('poll-update', _lastResult)
-    }
-  } catch (err) {
-    console.error('[PollCoordinator] pollGraph failed:', err)
+  if (calendarResult.status === 'rejected') console.error('[PollCoordinator] getCalendarEvents failed:', calendarResult.reason)
+  if (inboxResult.status === 'rejected') console.error('[PollCoordinator] getInboxData failed:', inboxResult.reason)
+  if (gmailResult.status === 'rejected') console.error('[PollCoordinator] getGmailInboxData failed:', gmailResult.reason)
+
+  _lastResult = { ...base, calendar, inbox, gmail }
+
+  if (_mainWindow && !_mainWindow.isDestroyed()) {
+    // Send auth state BEFORE poll-update so the renderer knows auth state when applying calendar data
+    _mainWindow.webContents.send('auth-state-change', {
+      msGraphAuthed: isAuthed(),
+      notionConfigured: getStoredNotionToken() !== null,
+      googleAuthed: isGoogleConfigured(),
+    })
+    _mainWindow.webContents.send('poll-update', _lastResult)
   }
 }
 

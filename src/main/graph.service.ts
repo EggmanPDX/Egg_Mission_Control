@@ -17,6 +17,7 @@ interface GraphCalendarEvent {
   body?: { content: string; contentType: string }
   isOnlineMeeting?: boolean
   onlineMeeting?: { joinUrl: string }
+  responseStatus?: { response: string }
 }
 
 interface GraphMessage {
@@ -87,26 +88,49 @@ export async function getCalendarEvents(): Promise<CalendarEvent[]> {
   const token = await getAccessToken()
 
   const today = new Date()
-  const startOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0))
-  const endOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + 1, 0, 0, 0))
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0)
+  const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, 0, 0, 0)
+  const dateParams = `startDateTime=${encodeURIComponent(startOfDay.toISOString())}&endDateTime=${encodeURIComponent(endOfDay.toISOString())}`
+  const selectFields = 'id,subject,start,end,attendees,webLink,body,isOnlineMeeting,onlineMeeting,responseStatus'
 
-  const url = `${GRAPH_API_BASE}/me/calendarView?startDateTime=${encodeURIComponent(startOfDay.toISOString())}&endDateTime=${encodeURIComponent(endOfDay.toISOString())}&$select=id,subject,start,end,attendees,webLink,body,isOnlineMeeting,onlineMeeting`
+  // Enumerate all calendars so we don't miss events on secondary/shared calendars
+  const calListResponse = await fetchWithBackoff(`${GRAPH_API_BASE}/me/calendars?$select=id`, token)
+  const calListData = (await calListResponse.json()) as { value: Array<{ id: string }> }
+  const calendarIds = calListData.value.map(c => c.id)
 
-  const response = await fetchWithBackoff(url, token)
-  const data = (await response.json()) as { value: GraphCalendarEvent[] }
+  // Query each calendar's view in parallel; ignore individual failures
+  const settled = await Promise.allSettled(
+    calendarIds.map(async (calId) => {
+      const url = `${GRAPH_API_BASE}/me/calendars/${encodeURIComponent(calId)}/calendarView?${dateParams}&$select=${selectFields}&$top=100`
+      const res = await fetchWithBackoff(url, token)
+      return ((await res.json()) as { value: GraphCalendarEvent[] }).value
+    })
+  )
 
   const toUtc = (dt: string) => dt.endsWith('Z') ? dt : dt + 'Z'
+  const seen = new Set<string>()
+  const allEvents: CalendarEvent[] = []
 
-  return data.value.map((event) => ({
-    id: event.id,
-    subject: event.subject,
-    start: toUtc(event.start.dateTime),
-    end: toUtc(event.end.dateTime),
-    attendees: event.attendees.map((a) => a.emailAddress.name),
-    webLink: event.webLink,
-    body: event.body ? stripHtml(event.body.content) : undefined,
-    joinUrl: event.isOnlineMeeting ? event.onlineMeeting?.joinUrl : undefined,
-  }))
+  for (const result of settled) {
+    if (result.status === 'rejected') continue
+    for (const event of result.value) {
+      if (seen.has(event.id)) continue
+      seen.add(event.id)
+      allEvents.push({
+        id: event.id,
+        subject: event.subject,
+        start: toUtc(event.start.dateTime),
+        end: toUtc(event.end.dateTime),
+        attendees: event.attendees.map((a) => a.emailAddress.name),
+        webLink: event.webLink,
+        body: event.body ? stripHtml(event.body.content) : undefined,
+        joinUrl: event.isOnlineMeeting ? event.onlineMeeting?.joinUrl : undefined,
+        isPending: event.responseStatus?.response === 'none',
+      })
+    }
+  }
+
+  return allEvents.sort((a, b) => a.start.localeCompare(b.start))
 }
 
 export async function getInboxData(): Promise<InboxData> {

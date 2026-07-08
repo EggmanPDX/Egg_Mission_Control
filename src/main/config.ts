@@ -18,6 +18,10 @@ export interface AppConfig {
     client_id: string
     tenant_id: string
   }
+  google: {
+    client_id: string
+    client_secret: string
+  }
   refresh: {
     graph_interval_ms: number
     notion_interval_ms: number
@@ -43,6 +47,10 @@ const DEFAULTS: AppConfig = {
   azure: {
     client_id: '',
     tenant_id: 'common',
+  },
+  google: {
+    client_id: '',
+    client_secret: '',
   },
   refresh: {
     graph_interval_ms: 300000,
@@ -75,6 +83,7 @@ export function loadConfig(): AppConfig {
       ...saved,
       notion: { ...DEFAULTS.notion, ...saved.notion },
       azure: { ...DEFAULTS.azure, ...saved.azure },
+      google: { ...DEFAULTS.google, ...saved.google },
       refresh: { ...DEFAULTS.refresh, ...saved.refresh },
     }
     return _config

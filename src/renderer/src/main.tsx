@@ -48,6 +48,25 @@ if (!window.api) {
       { name: 'The Code', found: true, subject: '🚀 Cognition ships Devin for Security', sender: 'The Code <superhumancode@news.codenewsletter.ai>', summary: '• Cognition ships Devin Security Swarm: Parallel AI agents scan codebases for vulnerabilities and auto-generate patch PRs.\n• Meta reportedly building a cloud compute business: Drafting "Meta Compute" to compete with AWS, GCP, Azure.\n• Claude Sonnet 5\'s "cheaper" pricing is a mirage: New tokenizer makes it cost ~15% more per task than Opus 4.8.' },
     ],
     newslettersUpdatedAt: new Date(Date.now() - 3 * 60 * 60000).toISOString(),
+    gmail: [
+      {
+        email: 'gdogsjunk@gmail.com',
+        unread: 7,
+        topSubjects: [
+          { subject: 'Your Amazon order has shipped', from: 'Amazon' },
+          { subject: 'Reminder: dentist appointment tomorrow', from: 'Dr. Chen Office' },
+          { subject: 'Weekly digest: 12 new stories', from: 'Substack' },
+        ],
+      },
+      {
+        email: 'gregg@buildgreatcourses.com',
+        unread: 3,
+        topSubjects: [
+          { subject: 'Invoice #4521 paid', from: 'Stripe' },
+          { subject: 'New client inquiry: onboarding program', from: 'Squarespace Forms' },
+        ],
+      },
+    ],
   }
   const noop = () => () => {}
   window.api = {
@@ -58,6 +77,9 @@ if (!window.api) {
     saveNotionToken: () => Promise.resolve({ ok: true }),
     validateNotionToken: () => Promise.resolve({ ok: true }),
     triggerReauth: () => Promise.resolve(),
+    isGoogleConfigured: () => Promise.resolve(true),
+    getConnectedGoogleAccounts: () => Promise.resolve(['gdogsjunk@gmail.com', 'gregg@buildgreatcourses.com']),
+    triggerGoogleReauth: () => Promise.resolve({ ok: true, email: 'gdogsjunk@gmail.com' }),
     completeTask: () => Promise.resolve({ ok: true }),
     archiveTask: () => Promise.resolve({ ok: true }),
     moveTask: () => Promise.resolve({ ok: true }),

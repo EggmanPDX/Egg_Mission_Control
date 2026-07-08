@@ -10,10 +10,7 @@ const TOKEN_FILE = path.join(MC_DIR, '.tokens')
 const NOTION_KEY_FILE = path.join(MC_DIR, '.notion-key')
 
 const SCOPES = ['Calendars.Read', 'Mail.Read', 'Chat.Read', 'User.Read']
-const REDIRECT_URI =
-  process.env.NODE_ENV === 'development'
-    ? 'http://localhost:3000/auth'
-    : 'missioncontrol://auth'
+const REDIRECT_URI = 'missioncontrol://auth'
 
 let _msalApp: PublicClientApplication | null = null
 let _authed = false

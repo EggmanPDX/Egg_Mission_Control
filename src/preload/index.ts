@@ -19,6 +19,15 @@ contextBridge.exposeInMainWorld('api', {
   triggerReauth: (): Promise<void> =>
     ipcRenderer.invoke('trigger-reauth'),
 
+  isGoogleConfigured: (): Promise<boolean> =>
+    ipcRenderer.invoke('is-google-configured'),
+
+  getConnectedGoogleAccounts: (): Promise<string[]> =>
+    ipcRenderer.invoke('get-connected-google-accounts'),
+
+  triggerGoogleReauth: (): Promise<{ ok: boolean; email?: string; error?: string }> =>
+    ipcRenderer.invoke('trigger-google-reauth'),
+
   archiveTask: (taskId: string): Promise<MutationResult> =>
     ipcRenderer.invoke('archive-notion-task', taskId),
 
@@ -47,6 +56,9 @@ declare global {
       validateNotionToken: (token: string) => Promise<{ ok: boolean; error?: string }>
       isNotionConfigured: () => Promise<boolean>
       triggerReauth: () => Promise<void>
+      isGoogleConfigured: () => Promise<boolean>
+      getConnectedGoogleAccounts: () => Promise<string[]>
+      triggerGoogleReauth: () => Promise<{ ok: boolean; email?: string; error?: string }>
       archiveTask: (taskId: string) => Promise<MutationResult>
       completeTask: (taskId: string, workspace: TaskWorkspace) => Promise<MutationResult>
       moveTask: (taskId: string, from: TaskWorkspace, to: TaskWorkspace) => Promise<MutationResult>
