@@ -250,20 +250,22 @@ export function DetailPanel({ item, onClose, onTaskMutated }: Props) {
           </button>
         )}
 
-        {/* Notes */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-mc-xs uppercase tracking-widest text-mc-ink-muted font-bold">
-            {item.type === 'job' ? 'Private Note' : 'Status Notes'}
-          </label>
-          <textarea
-            ref={textareaRef}
-            value={note}
-            onChange={e => handleNoteChange(e.target.value)}
-            placeholder="Add context, blockers, next steps…"
-            rows={4}
-            className="w-full bg-mc-canvas-alt border border-mc-canvas-border rounded-mc-md px-3 py-2 text-mc-sm text-mc-ink placeholder-mc-ink-faint resize-none focus:outline-none focus:ring-1 focus:ring-mc-d8"
-          />
-        </div>
+        {/* Notes — only for tasks and jobs */}
+        {(item.type === 'task' || item.type === 'job') && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-mc-xs uppercase tracking-widest text-mc-ink-muted font-bold">
+              {item.type === 'job' ? 'Private Note' : 'Status Notes'}
+            </label>
+            <textarea
+              ref={textareaRef}
+              value={note}
+              onChange={e => handleNoteChange(e.target.value)}
+              placeholder="Add context, blockers, next steps…"
+              rows={4}
+              className="w-full bg-mc-canvas-alt border border-mc-canvas-border rounded-mc-md px-3 py-2 text-mc-sm text-mc-ink placeholder-mc-ink-faint resize-none focus:outline-none focus:ring-1 focus:ring-mc-d8"
+            />
+          </div>
+        )}
       </div>
 
       {/* Task actions */}
