@@ -186,8 +186,10 @@ export function DetailPanel({ item, onClose, onTaskMutated }: Props) {
     saveNote(key, text)
   }
 
+  const isNewsletterHtml = item.type === 'newsletter' && !!(item.data as { html?: string }).html
+
   return (
-    <div className="w-[380px] flex-shrink-0 h-full border-l border-mc-canvas-border bg-mc-canvas flex flex-col">
+    <div className={`flex-shrink-0 h-full border-l border-mc-canvas-border bg-mc-canvas flex flex-col ${isNewsletterHtml ? 'w-[520px]' : 'w-[380px]'}`}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 h-11 border-b border-mc-canvas-border flex-shrink-0">
         <span className="text-mc-xs uppercase tracking-widest text-mc-ink-muted font-semibold">
@@ -203,6 +205,9 @@ export function DetailPanel({ item, onClose, onTaskMutated }: Props) {
       </div>
 
       {/* Content */}
+      {isNewsletterHtml ? (
+        <NewsletterHtmlView html={(item.data as { html: string }).html} />
+      ) : (
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex flex-col gap-1.5 min-w-0">
@@ -267,6 +272,7 @@ export function DetailPanel({ item, onClose, onTaskMutated }: Props) {
           </div>
         )}
       </div>
+      )}
 
       {/* Task actions */}
       {item.type === 'task' && (
@@ -306,6 +312,23 @@ export function DetailPanel({ item, onClose, onTaskMutated }: Props) {
         </div>
       )}
     </div>
+  )
+}
+
+function NewsletterHtmlView({ html }: { html: string }) {
+  // Inject a base tag so relative URLs resolve and a script to open all links externally
+  const decorated = html.replace(
+    /<head([^>]*)>/i,
+    `<head$1><base target="_blank"><script>document.addEventListener('click',function(e){var a=e.target.closest('a');if(a&&a.href){e.preventDefault();window.open(a.href,'_blank');}});<\/script>`
+  )
+  return (
+    <iframe
+      srcDoc={decorated}
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      className="w-full flex-1 border-0"
+      style={{ minHeight: 0 }}
+      title="Newsletter"
+    />
   )
 }
 
@@ -462,6 +485,9 @@ function ItemDetails({ item }: { item: SelectedItem }) {
 
   if (item.type === 'newsletter') {
     const { data } = item
+    if (data.html) {
+      return <NewsletterHtmlView html={data.html} />
+    }
     const stories = (data.articles ?? []).length > 0
       ? data.articles!
       : (data.summary ?? '').split('\n').filter(Boolean).map((line) => {

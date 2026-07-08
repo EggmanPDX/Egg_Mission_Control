@@ -70,6 +70,64 @@ async function getGmailInboxDataForAccount(email: string): Promise<GmailInboxDat
   return { email, unread: label.messagesUnread ?? 0, topSubjects }
 }
 
+// ── Newsletter HTML fetching ─────────────────────────────────────────────────
+
+// Keyed by the same names used in NewsletterEntry.name
+const NEWSLETTER_SENDERS: Record<string, string> = {
+  'The Rundown': 'news@daily.therundown.ai',
+  'The Neuron': 'theneuron@newsletter.theneurondaily.com',
+  'The Code': 'superhumancode@news.codenewsletter.ai',
+}
+
+function decodeBase64Url(data: string): string {
+  return Buffer.from(data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8')
+}
+
+function findHtmlPart(payload: Record<string, unknown>): string | null {
+  if ((payload.mimeType as string) === 'text/html') {
+    const data = (payload.body as Record<string, string>)?.data
+    return data ? decodeBase64Url(data) : null
+  }
+  const parts = payload.parts as Record<string, unknown>[] | undefined
+  for (const part of parts ?? []) {
+    const found = findHtmlPart(part)
+    if (found) return found
+  }
+  return null
+}
+
+async function fetchNewsletterHtml(email: string, senderAddress: string): Promise<string | null> {
+  const token = await getGoogleAccessToken(email)
+  const q = `from:${senderAddress} newer_than:2d`
+  const listResp = await gmailFetch(
+    `${GMAIL_API_BASE}/messages?q=${encodeURIComponent(q)}&maxResults=1`,
+    token
+  )
+  const listData = (await listResp.json()) as GmailListResponse
+  const msgId = listData.messages?.[0]?.id
+  if (!msgId) return null
+
+  const msgResp = await gmailFetch(`${GMAIL_API_BASE}/messages/${msgId}?format=full`, token)
+  const msg = (await msgResp.json()) as { payload: Record<string, unknown> }
+  return findHtmlPart(msg.payload)
+}
+
+/** Fetch the most recent HTML body for each known newsletter sender.
+ *  Uses the first connected Google account. Returns a map of name → HTML. */
+export async function fetchNewsletterHtmlMap(): Promise<Record<string, string>> {
+  const accounts = getConnectedGoogleAccounts()
+  if (accounts.length === 0) return {}
+  const email = accounts[0]
+  const result: Record<string, string> = {}
+  await Promise.allSettled(
+    Object.entries(NEWSLETTER_SENDERS).map(async ([name, sender]) => {
+      const html = await fetchNewsletterHtml(email, sender)
+      if (html) result[name] = html
+    })
+  )
+  return result
+}
+
 /** Fetches inbox data for every connected Gmail account. Each account is isolated — one
  *  account's token expiring/failing doesn't drop the others from the result. */
 export async function getGmailInboxData(): Promise<GmailInboxData[]> {

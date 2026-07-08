@@ -1,6 +1,6 @@
 import { BrowserWindow, powerMonitor } from 'electron'
 import { getCalendarEvents, getInboxData } from './graph.service'
-import { getGmailInboxData } from './gmail.service'
+import { getGmailInboxData, fetchNewsletterHtmlMap } from './gmail.service'
 import { fetchD8Tasks, fetchEggTasks, fetchBgcTasks, fetchJobRadar, fetchNewsletters } from './notion.service'
 import { checkAndFire, scheduleMidnightClear } from './notification.scheduler'
 import { getConfig } from './config'
@@ -105,8 +105,16 @@ export async function pollNotion(): Promise<void> {
   const bgcTasks = bgcResult.status === 'fulfilled' ? bgcResult.value : base.bgcTasks
   const jobRadar = jobRadarResult.status === 'fulfilled' ? jobRadarResult.value.jobs : base.jobRadar
   const jobRadarUpdatedAt = jobRadarResult.status === 'fulfilled' ? jobRadarResult.value.updatedAt : base.jobRadarUpdatedAt
-  const newsletters = newslettersResult.status === 'fulfilled' ? newslettersResult.value.newsletters : base.newsletters
+  let newsletters = newslettersResult.status === 'fulfilled' ? newslettersResult.value.newsletters : base.newsletters
   const newslettersUpdatedAt = newslettersResult.status === 'fulfilled' ? newslettersResult.value.updatedAt : base.newslettersUpdatedAt
+
+  // Enrich newsletter entries with full HTML fetched directly from Gmail
+  try {
+    const htmlMap = await fetchNewsletterHtmlMap()
+    if (Object.keys(htmlMap).length > 0) {
+      newsletters = newsletters.map((n) => htmlMap[n.name] ? { ...n, html: htmlMap[n.name] } : n)
+    }
+  } catch { /* Gmail unavailable — newsletters still show without HTML */ }
 
   if (d8Result.status === 'rejected') console.error('[PollCoordinator] fetchD8Tasks failed:', d8Result.reason)
   if (eggResult.status === 'rejected') console.error('[PollCoordinator] fetchEggTasks failed:', eggResult.reason)

@@ -36,6 +36,7 @@ export interface NewsletterEntry {
   sender?: string
   summary?: string         // kept for backwards compat
   articles?: NewsletterArticle[]
+  html?: string            // full HTML body fetched directly from Gmail
 }
 
 export interface NotionTask {
