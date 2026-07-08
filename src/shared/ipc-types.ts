@@ -22,12 +22,20 @@ export interface JobRadarEntry {
   applyUrl: string
 }
 
+export interface NewsletterArticle {
+  headline: string
+  headlineUrl?: string
+  gist: string
+  gistSegments?: Array<{ text: string; url?: string }>
+}
+
 export interface NewsletterEntry {
   name: string             // "The Rundown", "The Neuron", etc.
   found: boolean           // false when no issue was found in the last 24h
   subject?: string
   sender?: string
-  summary?: string         // multi-line bullet text, may contain \n between bullets
+  summary?: string         // kept for backwards compat
+  articles?: NewsletterArticle[]
 }
 
 export interface NotionTask {

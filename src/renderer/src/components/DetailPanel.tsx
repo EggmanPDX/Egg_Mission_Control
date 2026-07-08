@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { SelectedItem, TaskWorkspace } from '../types'
+import type { SelectedItem, TaskWorkspace, NewsletterArticle } from '../types'
 
 const ALL_WORKSPACES: TaskWorkspace[] = ['D8', 'BGC', 'EGG']
 const WORKSPACE_PILL: Record<TaskWorkspace, string> = {
@@ -37,6 +37,7 @@ function itemKey(item: SelectedItem): string {
   if (item.type === 'chat') return `chat:${item.data.chatId}`
   if (item.type === 'job') return `job:${item.data.id}`
   if (item.type === 'newsletter') return `newsletter:${item.data.name}`
+  if (item.type === 'newsletter-story') return `newsletter-story:${item.data.newsletter.name}:${item.data.article.headline}`
   return `inbox:${item.data.from}:${item.data.subject}`
 }
 
@@ -46,6 +47,7 @@ function panelLabel(item: SelectedItem): string {
   if (item.type === 'chat') return 'MESSAGE DETAILS'
   if (item.type === 'job') return 'JOB DETAILS'
   if (item.type === 'newsletter') return 'NEWSLETTER'
+  if (item.type === 'newsletter-story') return item.data.newsletter.name.toUpperCase()
   return 'MESSAGE DETAILS'
 }
 
@@ -55,6 +57,7 @@ function itemTitle(item: SelectedItem): string {
   if (item.type === 'chat') return item.data.from
   if (item.type === 'job') return item.data.title
   if (item.type === 'newsletter') return item.data.name
+  if (item.type === 'newsletter-story') return item.data.article.headline
   return item.data.subject
 }
 
@@ -304,6 +307,27 @@ export function DetailPanel({ item, onClose, onTaskMutated }: Props) {
   )
 }
 
+function GistSegments({ segments }: { segments: Array<{ text: string; url?: string }> }) {
+  return (
+    <>
+      {segments.map((seg, i) =>
+        seg.url ? (
+          <a
+            key={i}
+            href={seg.url}
+            onClick={(e) => { e.preventDefault(); window.open(seg.url, '_blank') }}
+            className="text-mc-d8 underline cursor-pointer hover:brightness-75"
+          >
+            {seg.text}
+          </a>
+        ) : (
+          <span key={i}>{seg.text}</span>
+        )
+      )}
+    </>
+  )
+}
+
 function TypeBadge({ item }: { item: SelectedItem }) {
   if (item.type === 'calendar') {
     return <span className="text-mc-xs uppercase font-bold tracking-widest text-mc-d8">Meeting</span>
@@ -328,7 +352,7 @@ function TypeBadge({ item }: { item: SelectedItem }) {
   if (item.type === 'job') {
     return <span className="text-mc-xs uppercase font-bold tracking-widest px-1.5 py-0.5 rounded-mc-sm text-mc-d8 bg-mc-pill-blue-bg">Job Radar · {item.data.score}/100</span>
   }
-  if (item.type === 'newsletter') {
+  if (item.type === 'newsletter' || item.type === 'newsletter-story') {
     return <span className="text-mc-xs uppercase font-bold tracking-widest text-mc-d8">Newsletter</span>
   }
   return <span className="text-mc-xs uppercase font-bold tracking-widest text-mc-d8">Email</span>
@@ -406,18 +430,43 @@ function ItemDetails({ item }: { item: SelectedItem }) {
     )
   }
 
+  if (item.type === 'newsletter-story') {
+    const { newsletter, article } = item.data
+    return (
+      <div className="flex flex-col gap-2.5">
+        {(newsletter.subject || newsletter.sender) && (
+          <Row label="Issue">
+            {newsletter.subject}
+            {newsletter.subject && newsletter.sender && <span className="text-mc-ink-muted"> · {newsletter.sender}</span>}
+            {!newsletter.subject && newsletter.sender}
+          </Row>
+        )}
+        {article.headlineUrl && (
+          <a
+            href={article.headlineUrl}
+            onClick={(e) => { e.preventDefault(); window.open(article.headlineUrl, '_blank') }}
+            className="self-start text-mc-sm font-bold uppercase tracking-widest px-3 py-1.5 rounded-mc-sm border
+              text-mc-d8 border-mc-d8 bg-mc-pill-blue-bg hover:brightness-95 cursor-pointer"
+          >
+            Read Article ↗
+          </a>
+        )}
+        <p className="text-mc-sm text-mc-ink leading-relaxed">
+          <GistSegments segments={article.gistSegments ?? [{ text: article.gist }]} />
+        </p>
+      </div>
+    )
+  }
+
   if (item.type === 'newsletter') {
     const { data } = item
-    const stories = (data.summary ?? '')
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => line.replace(/^•\s*/, ''))
-      .map((line) => {
-        const sepIndex = line.indexOf(': ')
-        return sepIndex === -1
-          ? { headline: line, gist: '' }
-          : { headline: line.slice(0, sepIndex), gist: line.slice(sepIndex + 2) }
-      })
+    const stories = (data.articles ?? []).length > 0
+      ? data.articles!
+      : (data.summary ?? '').split('\n').filter(Boolean).map((line) => {
+          const clean = line.replace(/^•\s*/, '')
+          const sep = clean.indexOf(': ')
+          return sep === -1 ? { headline: clean, gist: '' } : { headline: clean.slice(0, sep), gist: clean.slice(sep + 2) }
+        })
     return (
       <div className="flex flex-col gap-2.5">
         {(data.subject || data.sender) && (

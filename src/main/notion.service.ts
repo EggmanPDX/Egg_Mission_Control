@@ -1,6 +1,6 @@
 import { Client as NotionClient } from '@notionhq/client'
 import type { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints'
-import type { NotionTask, TaskWorkspace, JobRadarEntry, NewsletterEntry } from '../shared/ipc-types'
+import type { NotionTask, TaskWorkspace, JobRadarEntry, NewsletterEntry, NewsletterArticle } from '../shared/ipc-types'
 import { getStoredNotionToken } from './auth.service'
 import { getConfig } from './config'
 import { getMockPollResult, MOCK_MODE } from './mock'
@@ -430,15 +430,60 @@ export async function fetchNewsletters(): Promise<{ newsletters: NewsletterEntry
   let updatedAt: string | null = null
   const newsletters: NewsletterEntry[] = []
   let current: NewsletterEntry | null = null
-  const summaryParts: string[] = []
+  // Accumulate rich segments (with URL info) across all story blocks for the current newsletter
+  const rawSegs: Array<{ text: string; url?: string }> = []
+
+  function parseArticles(segs: Array<{ text: string; url?: string }>): NewsletterArticle[] {
+    // Split into lines at \n characters (which may be embedded in segment text or be standalone segments)
+    const lines: Array<Array<{ text: string; url?: string }>> = [[]]
+    for (const seg of segs) {
+      const parts = seg.text.split('\n')
+      for (let i = 0; i < parts.length; i++) {
+        if (i > 0) lines.push([])
+        if (parts[i]) lines[lines.length - 1].push({ text: parts[i], url: seg.url })
+      }
+    }
+
+    return lines.flatMap((line): NewsletterArticle[] => {
+      if (!line.length) return []
+      // Strip leading bullet markers (•, -, *)
+      line[0] = { ...line[0], text: line[0].text.replace(/^[•\-\*]\s*/, '') }
+      // Find ": " separator to split headline from gist; track URL on headline segments
+      let headlineText = ''
+      let headlineUrl: string | undefined
+      const gistSegs: Array<{ text: string; url?: string }> = []
+      let foundSep = false
+      for (const seg of line) {
+        if (foundSep) { gistSegs.push(seg); continue }
+        const idx = seg.text.indexOf(': ')
+        if (idx !== -1) {
+          headlineText += seg.text.slice(0, idx)
+          if (!headlineUrl && seg.url) headlineUrl = seg.url
+          const rest = seg.text.slice(idx + 2)
+          if (rest) gistSegs.push({ text: rest, url: seg.url })
+          foundSep = true
+        } else {
+          headlineText += seg.text
+          if (!headlineUrl && seg.url) headlineUrl = seg.url
+        }
+      }
+      const headline = headlineText.trim()
+      if (!headline) return []
+      const gist = gistSegs.map((s) => s.text).join('').trim()
+      return [{ headline, headlineUrl, gist, gistSegments: gistSegs.filter((s) => s.text.trim()) }]
+    })
+  }
 
   function flushCurrent() {
     if (current) {
-      if (summaryParts.length > 0) current.summary = summaryParts.join('\n\n')
+      if (rawSegs.length > 0) {
+        current.articles = parseArticles([...rawSegs])
+        current.summary = current.articles.map((a) => `• ${a.headline}: ${a.gist}`).join('\n')
+      }
       newsletters.push(current)
     }
     current = null
-    summaryParts.length = 0
+    rawSegs.length = 0
   }
 
   for (const block of blocks) {
@@ -456,15 +501,18 @@ export async function fetchNewsletters(): Promise<{ newsletters: NewsletterEntry
     } else if (block.type === 'heading_3') {
       flushCurrent()
       current = { name: plainTextOf(block), found: false }
-    } else if (block.type === 'paragraph' && current) {
-      if (isGraySubjectLine(block)) {
+    } else if ((block.type === 'paragraph' || block.type === 'bulleted_list_item') && current) {
+      if (block.type === 'paragraph' && isGraySubjectLine(block)) {
         const [subject, sender] = plainTextOf(block).split('·').map((s) => s.trim())
         current.found = true
         current.subject = subject
         current.sender = sender
       } else {
-        const text = plainTextOf(block).trim()
-        if (text) summaryParts.push(text)
+        // Collect rich segments so we preserve hyperlink URLs
+        if (rawSegs.length > 0) rawSegs.push({ text: '\n' }) // separator between blocks
+        for (const rt of richTextOf(block)) {
+          rawSegs.push({ text: rt.plain_text, url: rt.text?.link?.url ?? undefined })
+        }
       }
     }
   }

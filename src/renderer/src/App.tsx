@@ -114,6 +114,10 @@ export default function App() {
         setBgcTaskPanel({ status: { state: 'not-configured' }, data: null })
         setJobRadarPanel({ status: { state: 'not-configured' }, data: null })
         setNewsletterPanel({ status: { state: 'not-configured' }, data: null })
+      } else {
+        // getPollResult() below races with this and usually wins before the ref is set,
+        // leaving Notion panels blank. Re-apply once the ref is confirmed true.
+        window.api.getPollResult().then(result => { if (result) applyPollResult(result) })
       }
     })
 

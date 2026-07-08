@@ -88,14 +88,27 @@ export function NewsletterPanel({ panel, updatedAt, selectedItem, onSelect }: Ne
                             {newsletter.sender}
                           </div>
                         )}
-                        {stories.length > 0 && (
-                          <div className="text-mc-sm text-mc-ink mt-2 leading-relaxed truncate">
-                            {stories[0].replace(/^•\s*/, '')}
-                          </div>
-                        )}
-                        {stories.length > 1 && (
-                          <div className="text-mc-xs text-mc-d8 mt-1 uppercase tracking-widest font-bold">
-                            +{stories.length - 1} more {stories.length - 1 === 1 ? 'story' : 'stories'}
+                        {(newsletter.articles ?? []).length > 0 && (
+                          <div className="flex flex-col gap-1 mt-2">
+                            {(newsletter.articles ?? []).map((article, i) => {
+                              const isStorySelected =
+                                selectedItem?.type === 'newsletter-story' &&
+                                selectedItem.data.newsletter.name === newsletter.name &&
+                                selectedItem.data.article.headline === article.headline
+                              return (
+                                <button
+                                  key={i}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onSelect({ type: 'newsletter-story', data: { newsletter, article } })
+                                  }}
+                                  className={`w-full text-left text-mc-sm font-semibold leading-snug px-2 py-1 rounded-mc-sm focus:outline-none
+                                    ${isStorySelected ? 'text-mc-d8 bg-mc-pill-blue-bg' : 'text-mc-ink hover:text-mc-d8 hover:bg-mc-canvas-alt'}`}
+                                >
+                                  {article.headline}
+                                </button>
+                              )
+                            })}
                           </div>
                         )}
                       </>
