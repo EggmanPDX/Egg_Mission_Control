@@ -3,7 +3,7 @@ import { join } from 'path'
 import { loadConfig } from './config'
 import { handleAuthCallback, getStoredNotionToken, storeNotionToken, triggerReauth } from './auth.service'
 import { isGoogleConfigured, triggerGoogleReauth, getConnectedGoogleAccounts } from './google-auth.service'
-import { validateToken, archiveTask, completeTask, moveTask } from './notion.service'
+import { validateToken, archiveTask, completeTask, moveTask, fetchProjectContext } from './notion.service'
 import { startPolling, stopPolling, getLastResult, pollNotion, pollGraph } from './poll.coordinator'
 import type { PollResult, TaskWorkspace } from '../shared/ipc-types'
 import { setupAutoLaunch } from './auto-launch'
@@ -247,6 +247,18 @@ ipcMain.handle(
       await moveTask(taskId, from, to)
       pollNotion().catch((err) => console.error('[Main] post-move pollNotion failed:', err))
       return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'get-project-context',
+  async (_event, pageId: string): Promise<{ ok: boolean; context?: string; error?: string }> => {
+    try {
+      const context = await fetchProjectContext(pageId)
+      return { ok: true, context }
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) }
     }

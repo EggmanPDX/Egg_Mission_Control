@@ -84,6 +84,7 @@ if (!window.api) {
     completeTask: () => Promise.resolve({ ok: true }),
     archiveTask: () => Promise.resolve({ ok: true }),
     moveTask: () => Promise.resolve({ ok: true }),
+    getProjectContext: () => Promise.resolve({ ok: true, context: '' }),
   }
 }
 

@@ -37,6 +37,9 @@ contextBridge.exposeInMainWorld('api', {
   moveTask: (taskId: string, from: TaskWorkspace, to: TaskWorkspace): Promise<MutationResult> =>
     ipcRenderer.invoke('move-notion-task', taskId, from, to),
 
+  getProjectContext: (pageId: string): Promise<{ ok: boolean; context?: string; error?: string }> =>
+    ipcRenderer.invoke('get-project-context', pageId),
+
   onPollUpdate: (callback: (data: PollResult) => void) => {
     ipcRenderer.on('poll-update', (_event, data) => callback(data))
     return () => ipcRenderer.removeAllListeners('poll-update')
@@ -62,6 +65,7 @@ declare global {
       archiveTask: (taskId: string) => Promise<MutationResult>
       completeTask: (taskId: string, workspace: TaskWorkspace) => Promise<MutationResult>
       moveTask: (taskId: string, from: TaskWorkspace, to: TaskWorkspace) => Promise<MutationResult>
+      getProjectContext: (pageId: string) => Promise<{ ok: boolean; context?: string; error?: string }>
       onPollUpdate: (cb: (data: PollResult) => void) => () => void
       onAuthStateChange: (cb: (state: { msGraphAuthed: boolean; notionConfigured: boolean }) => void) => () => void
     }
