@@ -11,7 +11,7 @@ export interface PanelState<T> {
   data: T | null
 }
 
-export type { CalendarEvent, NotionTask, InboxData, GmailInboxData, PollResult, TaskWorkspace, JobRadarEntry, ChatMessage, NewsletterEntry, NewsletterArticle } from '../../shared/ipc-types'
+export type { CalendarEvent, NotionTask, InboxData, GmailInboxData, PollResult, TaskWorkspace, JobRadarEntry, ChatMessage, NewsletterEntry, NewsletterArticle, ProjectRollupEntry, ProjectHealth, ProjectDependency } from '../../shared/ipc-types'
 
 import type { CalendarEvent, NotionTask, ChatMessage, TaskWorkspace, JobRadarEntry, NewsletterEntry, NewsletterArticle } from '../../shared/ipc-types'
 
@@ -24,4 +24,4 @@ export type SelectedItem =
   | { type: 'newsletter'; data: NewsletterEntry }
   | { type: 'newsletter-story'; data: { newsletter: NewsletterEntry; article: NewsletterArticle } }
 
-export type NavPanelId = 'meeting' | 'inbox' | 'd8' | 'bgc' | 'egg' | 'jobRadar' | 'newsletters'
+export type NavPanelId = 'meeting' | 'inbox' | 'd8' | 'bgc' | 'egg' | 'jobRadar' | 'newsletters' | 'projects'

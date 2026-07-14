@@ -54,6 +54,11 @@ const NewspaperIcon = () => (
     <path d="M5 7.5h6M5 10h6M5 12.5h4" />
   </svg>
 )
+const FolderIcon = () => (
+  <svg {...ICON_PROPS} className="w-[18px] h-[18px]">
+    <path d="M2.5 5.5a1 1 0 0 1 1-1h4l1.5 2h7a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-12.5a1 1 0 0 1-1-1v-9z" />
+  </svg>
+)
 const GearIcon = () => (
   <svg {...ICON_PROPS} className="w-[16px] h-[16px]">
     <circle cx="10" cy="10" r="2.75" />
@@ -69,6 +74,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'egg', label: 'Egg Tasks', icon: <LeafIcon /> },
   { id: 'jobRadar', label: 'Job Radar', icon: <RadarIcon /> },
   { id: 'newsletters', label: 'Newsletters', icon: <NewspaperIcon /> },
+  { id: 'projects', label: 'Projects', icon: <FolderIcon /> },
 ]
 
 interface NavSidebarProps {
