@@ -129,7 +129,12 @@ In `IpcChannels`, add after `'move-notion-task'`:
 
 - [ ] **Step 4: Typecheck**
 
+`src/main/**` is checked by a separate tsconfig from the renderer/shared code — run both:
+
 Run: `npx tsc --noEmit -p tsconfig.json`
+Expected: no errors (this config doesn't cover `src/main/**`).
+
+Run: `npx tsc --noEmit -p tsconfig.node.json`
 Expected: fails, referencing `poll.coordinator.ts` and `mock/index.ts` missing `projectRollup` on `PollResult` object literals — this is expected until Task 5. Confirm there are no *other* errors (e.g. no typo in the new types themselves).
 
 - [ ] **Step 5: Commit**
@@ -453,7 +458,9 @@ import type { NotionTask, TaskWorkspace, JobRadarEntry, NewsletterEntry, Newslet
 
 - [ ] **Step 3: Typecheck**
 
-Run: `npx tsc --noEmit -p tsconfig.json`
+`notion.service.ts` is main-process code — check it with the node config, not the root one:
+
+Run: `npx tsc --noEmit -p tsconfig.node.json`
 Expected: same two pre-existing errors as Task 2 Step 4 (`poll.coordinator.ts`, `mock/index.ts` missing `projectRollup`), no new errors in `notion.service.ts`.
 
 - [ ] **Step 4: Commit**
@@ -609,6 +616,9 @@ Update the final `_lastResult` assignment to include `projectRollup`:
 
 - [ ] **Step 4: Typecheck and run full test suite**
 
+Run: `npx tsc --noEmit -p tsconfig.node.json`
+Expected: no errors — this is the config that actually covers `src/main/**`, and should now clear the two pre-existing errors from Tasks 2 and 4.
+
 Run: `npx tsc --noEmit -p tsconfig.json`
 Expected: no errors.
 
@@ -684,6 +694,11 @@ In `src/renderer/src/main.tsx`, add to the `window.api = { ... }` object, after 
 ```
 
 - [ ] **Step 4: Typecheck**
+
+This task touches both configs — `main/index.ts` is node-only, `preload/index.ts` is in both, `renderer/src/main.tsx` is renderer-only:
+
+Run: `npx tsc --noEmit -p tsconfig.node.json`
+Expected: no errors.
 
 Run: `npx tsc --noEmit -p tsconfig.json`
 Expected: no errors.
