@@ -47,6 +47,33 @@ export interface NotionTask {
   url: string
 }
 
+export type ProjectHealth = 'On Track' | 'At Risk' | 'Off Track'
+
+export interface ProjectDependency {
+  id: string
+  title: string
+  status: string
+}
+
+export interface ProjectRollupEntry {
+  tier: 'rich' | 'light'
+  id: string
+  workspace: TaskWorkspace
+  title: string
+  status: string
+  nextAction: string | null
+  url: string
+  lastEditedTime: string
+  // rich (D8) fields only — undefined when tier === 'light'
+  healthStatus?: ProjectHealth
+  healthOverride?: ProjectHealth | null
+  risks?: string | null
+  nextGate?: string | null
+  gateDate?: string | null
+  dependsOn?: ProjectDependency[]
+  blocks?: ProjectDependency[]
+}
+
 export interface ChatMessage {
   chatId: string
   from: string
@@ -74,6 +101,7 @@ export interface PollResult {
   d8Tasks: NotionTask[]
   eggTasks: NotionTask[]
   bgcTasks: NotionTask[]
+  projectRollup: ProjectRollupEntry[]
   jobRadar: JobRadarEntry[]
   jobRadarUpdatedAt: string | null  // ISO 8601, parsed from the "Last updated: ..." callout
   newsletters: NewsletterEntry[]
@@ -96,6 +124,7 @@ export interface IpcChannels {
   'archive-notion-task': (taskId: string) => Promise<{ ok: boolean; error?: string }>
   'complete-notion-task': (taskId: string, workspace: TaskWorkspace) => Promise<{ ok: boolean; error?: string }>
   'move-notion-task': (taskId: string, from: TaskWorkspace, to: TaskWorkspace) => Promise<{ ok: boolean; error?: string }>
+  'get-project-context': (pageId: string) => Promise<{ ok: boolean; context?: string; error?: string }>
   // main → renderer (push events)
   'poll-update': PollResult
   'auth-state-change': { msGraphAuthed: boolean; notionConfigured: boolean; googleAuthed: boolean }
