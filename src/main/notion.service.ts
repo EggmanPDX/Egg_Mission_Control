@@ -1,6 +1,6 @@
 import { Client as NotionClient } from '@notionhq/client'
 import type { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints'
-import type { NotionTask, TaskWorkspace, JobRadarEntry, NewsletterEntry, NewsletterArticle } from '../shared/ipc-types'
+import type { NotionTask, TaskWorkspace, JobRadarEntry, NewsletterEntry, NewsletterArticle, ProjectRollupEntry, ProjectDependency, ProjectHealth } from '../shared/ipc-types'
 import { getStoredNotionToken } from './auth.service'
 import { getConfig } from './config'
 import { getMockPollResult, MOCK_MODE } from './mock'
@@ -311,6 +311,166 @@ export async function moveTask(pageId: string, from: TaskWorkspace, to: TaskWork
   })
 
   await client.pages.update({ page_id: pageId, archived: true })
+}
+
+// ── Project Rollup ──────────────────────────────────────────────────────────
+// "Project" rows share the same database as tasks in all three workspaces — a Type
+// property (Task/Project) distinguishes them. Unlike queryDatabase (tasks), this does NOT
+// filter out Done projects: a finished project is still meaningful rollup history, not noise
+// to hide.
+
+function extractTitle(properties: Record<string, unknown>): string {
+  const titleProperty = Object.values(properties).find(
+    (prop): prop is Record<string, unknown> =>
+      typeof prop === 'object' && prop !== null && (prop as Record<string, unknown>).type === 'title'
+  )
+  if (titleProperty && Array.isArray(titleProperty.title)) {
+    return (titleProperty.title as Array<{ plain_text: string }>).map((t) => t.plain_text).join('')
+  }
+  return ''
+}
+
+function extractSelectOrStatus(prop: unknown): string {
+  const p = prop as { type?: string; select?: { name: string } | null; status?: { name: string } | null } | undefined
+  if (p?.type === 'select' && p.select?.name) return p.select.name
+  if (p?.type === 'status' && p.status?.name) return p.status.name
+  return 'Unknown'
+}
+
+function extractText(prop: unknown): string | null {
+  const p = prop as { type?: string; rich_text?: Array<{ plain_text: string }> } | undefined
+  if (p?.type === 'rich_text' && Array.isArray(p.rich_text)) {
+    const text = p.rich_text.map((t) => t.plain_text).join('')
+    return text || null
+  }
+  return null
+}
+
+function extractDate(prop: unknown): string | null {
+  const p = prop as { type?: string; date?: { start: string } | null } | undefined
+  return p?.type === 'date' && p.date?.start ? p.date.start : null
+}
+
+function extractRelationIds(prop: unknown): string[] {
+  const p = prop as { type?: string; relation?: Array<{ id: string }> } | undefined
+  return p?.type === 'relation' && Array.isArray(p.relation) ? p.relation.map((r) => r.id) : []
+}
+
+async function queryProjectRows(
+  databaseId: string,
+  workspace: TaskWorkspace,
+  rich: boolean
+): Promise<ProjectRollupEntry[]> {
+  const client = getClient()
+
+  return queryWithRetry(async () => {
+    const response = await client.databases.query({
+      database_id: databaseId,
+      filter: { property: 'Type', select: { equals: 'Project' } },
+    })
+
+    const rows = response.results as PageObjectResponse[]
+
+    // Build id → {title, status} once, up front, so dependency relations (which point at
+    // other rows in this same query result) can be resolved without a second API round trip.
+    const byId = new Map<string, { title: string; status: string }>()
+    for (const row of rows) {
+      const properties = row.properties as Record<string, unknown>
+      byId.set(row.id, { title: extractTitle(properties), status: extractSelectOrStatus(properties.Status) })
+    }
+
+    function resolveDeps(ids: string[]): ProjectDependency[] {
+      return ids
+        .map((id) => {
+          const found = byId.get(id)
+          return found ? { id, title: found.title, status: found.status } : null
+        })
+        .filter((d): d is ProjectDependency => d !== null)
+    }
+
+    return rows.map((row): ProjectRollupEntry => {
+      const properties = row.properties as Record<string, unknown>
+      const title = extractTitle(properties)
+      const status = extractSelectOrStatus(properties.Status)
+      const nextAction = extractText(properties['Next Action'])
+      const url = `https://notion.so/${row.id.replace(/-/g, '')}`
+      const lastEditedTime = row.last_edited_time
+
+      if (!rich) {
+        return { tier: 'light', id: row.id, workspace, title, status, nextAction, url, lastEditedTime }
+      }
+
+      const healthOverrideRaw = extractSelectOrStatus(properties['Health Status'])
+      const healthOverride: ProjectHealth | null =
+        healthOverrideRaw === 'On Track' || healthOverrideRaw === 'At Risk' || healthOverrideRaw === 'Off Track'
+          ? healthOverrideRaw
+          : null
+      const risks = extractText(properties.Risks)
+      const nextGate = extractText(properties['Next Gate'])
+      const gateDate = extractDate(properties['Gate Date'])
+      const dependsOn = resolveDeps(extractRelationIds(properties['Depends On']))
+      const blocks = resolveDeps(extractRelationIds(properties.Blocks))
+
+      const healthStatus = deriveHealthStatus({
+        status,
+        gateDate,
+        healthOverride,
+        blockingDeps: dependsOn.map((d) => ({ status: d.status })),
+      })
+
+      return {
+        tier: 'rich',
+        id: row.id,
+        workspace,
+        title,
+        status,
+        nextAction,
+        url,
+        lastEditedTime,
+        healthStatus,
+        healthOverride,
+        risks,
+        nextGate,
+        gateDate,
+        dependsOn,
+        blocks,
+      }
+    })
+  })
+}
+
+export async function fetchD8Projects(): Promise<ProjectRollupEntry[]> {
+  if (MOCK_MODE) return getMockPollResult().projectRollup.filter((p) => p.workspace === 'D8')
+
+  const config = getConfig()
+  return queryProjectRows(config.notion.d8_tasks_db, 'D8', true)
+}
+
+export async function fetchLightProjects(workspace: 'BGC' | 'EGG'): Promise<ProjectRollupEntry[]> {
+  if (MOCK_MODE) return getMockPollResult().projectRollup.filter((p) => p.workspace === workspace)
+
+  const config = getConfig()
+  const databaseId = workspace === 'BGC' ? config.notion.bgc_tasks_db : config.notion.egg_tasks_db
+  if (!databaseId) return []
+  return queryProjectRows(databaseId, workspace, false)
+}
+
+/** Concatenates a project row's own page body into a single string — the free-text
+ *  context/summary/background/history Gregg writes directly on the project's Notion page. */
+export async function fetchProjectContext(pageId: string): Promise<string> {
+  const client = getClient()
+  const response = await queryWithRetry(() =>
+    client.blocks.children.list({ block_id: pageId, page_size: 100 })
+  )
+  const blocks = response.results as unknown as Array<{ type: string; [key: string]: unknown }>
+
+  return blocks
+    .map((block) => {
+      const body = block[block.type] as { rich_text?: Array<{ plain_text: string }> } | undefined
+      return body?.rich_text?.map((rt) => rt.plain_text).join('') ?? ''
+    })
+    .filter((text) => text.trim().length > 0)
+    .join('\n\n')
 }
 
 // ── Job Radar ────────────────────────────────────────────────────────────────
