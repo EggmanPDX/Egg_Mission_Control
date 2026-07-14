@@ -48,6 +48,7 @@ if (!window.api) {
       { name: 'The Code', found: true, subject: '🚀 Cognition ships Devin for Security', sender: 'The Code <superhumancode@news.codenewsletter.ai>', summary: '• Cognition ships Devin Security Swarm: Parallel AI agents scan codebases for vulnerabilities and auto-generate patch PRs.\n• Meta reportedly building a cloud compute business: Drafting "Meta Compute" to compete with AWS, GCP, Azure.\n• Claude Sonnet 5\'s "cheaper" pricing is a mirage: New tokenizer makes it cost ~15% more per task than Opus 4.8.' },
     ],
     newslettersUpdatedAt: new Date(Date.now() - 3 * 60 * 60000).toISOString(),
+    projectRollup: [],
     gmail: [
       {
         email: 'gdogsjunk@gmail.com',

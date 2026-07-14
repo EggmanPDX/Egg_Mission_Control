@@ -629,10 +629,13 @@ git commit -m "feat: poll project rollup data alongside tasks"
 **Files:**
 - Modify: `src/main/index.ts`
 - Modify: `src/preload/index.ts`
+- Modify: `src/renderer/src/main.tsx`
 
 **Interfaces:**
 - Consumes: `fetchProjectContext` (Task 4).
 - Produces: `window.api.getProjectContext(pageId: string): Promise<{ ok: boolean; context?: string; error?: string }>` — Task 8's panel calls this directly.
+
+**Note:** `src/renderer/src/main.tsx` contains a separate browser-shim mock (`window.api` fallback for running the renderer outside Electron) that Task 2 already had to patch with `projectRollup: []` on its `MOCK_POLL` object, to fix a typecheck error Task 2 surfaced. That shim also needs a `getProjectContext` stub once this task adds the real one to the `Window['api']` type, or the shim object literal will fail its own excess/missing-property typecheck.
 
 - [ ] **Step 1: Add the IPC handler**
 
@@ -672,15 +675,23 @@ Add to the `Window['api']` type declaration at the bottom of the file, after `mo
       getProjectContext: (pageId: string) => Promise<{ ok: boolean; context?: string; error?: string }>
 ```
 
-- [ ] **Step 3: Typecheck**
+- [ ] **Step 3: Add the stub to the browser shim**
+
+In `src/renderer/src/main.tsx`, add to the `window.api = { ... }` object, after `moveTask`:
+
+```typescript
+    getProjectContext: () => Promise.resolve({ ok: true, context: '' }),
+```
+
+- [ ] **Step 4: Typecheck**
 
 Run: `npx tsc --noEmit -p tsconfig.json`
 Expected: no errors.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/main/index.ts src/preload/index.ts
+git add src/main/index.ts src/preload/index.ts src/renderer/src/main.tsx
 git commit -m "feat: expose get-project-context IPC channel"
 ```
 
