@@ -1,7 +1,7 @@
 import { BrowserWindow, powerMonitor } from 'electron'
 import { getCalendarEvents, getInboxData } from './graph.service'
 import { getGmailInboxData, fetchNewsletterHtmlMap } from './gmail.service'
-import { fetchD8Tasks, fetchEggTasks, fetchBgcTasks, fetchJobRadar, fetchNewsletters } from './notion.service'
+import { fetchD8Tasks, fetchEggTasks, fetchBgcTasks, fetchJobRadar, fetchNewsletters, fetchD8Projects, fetchLightProjects } from './notion.service'
 import { checkAndFire, scheduleMidnightClear } from './notification.scheduler'
 import { getConfig } from './config'
 import { isAuthed, getStoredNotionToken } from './auth.service'
@@ -35,6 +35,7 @@ const DEFAULT_POLL_RESULT: PollResult = {
   d8Tasks: [],
   eggTasks: [],
   bgcTasks: [],
+  projectRollup: [],
   jobRadar: [],
   jobRadarUpdatedAt: null,
   newsletters: [],
@@ -96,12 +97,15 @@ export async function pollNotion(): Promise<void> {
   // ponytail: capture fallback at start (for per-field fallback on failure), but merge into
   // CURRENT _lastResult at end to avoid overwriting concurrent pollGraph() data
   const fallback = _lastResult ?? DEFAULT_POLL_RESULT
-  const [d8Result, eggResult, bgcResult, jobRadarResult, newslettersResult] = await Promise.allSettled([
+  const [d8Result, eggResult, bgcResult, jobRadarResult, newslettersResult, d8ProjectsResult, bgcProjectsResult, eggProjectsResult] = await Promise.allSettled([
     fetchD8Tasks(),
     fetchEggTasks(),
     fetchBgcTasks(),
     fetchJobRadar(),
     fetchNewsletters(),
+    fetchD8Projects(),
+    fetchLightProjects('BGC'),
+    fetchLightProjects('EGG'),
   ])
 
   const d8Tasks = d8Result.status === 'fulfilled' ? d8Result.value : fallback.d8Tasks
@@ -111,6 +115,12 @@ export async function pollNotion(): Promise<void> {
   const jobRadarUpdatedAt = jobRadarResult.status === 'fulfilled' ? jobRadarResult.value.updatedAt : fallback.jobRadarUpdatedAt
   let newsletters = newslettersResult.status === 'fulfilled' ? newslettersResult.value.newsletters : fallback.newsletters
   const newslettersUpdatedAt = newslettersResult.status === 'fulfilled' ? newslettersResult.value.updatedAt : fallback.newslettersUpdatedAt
+
+  const fallbackProjects = fallback.projectRollup
+  const d8Projects = d8ProjectsResult.status === 'fulfilled' ? d8ProjectsResult.value : fallbackProjects.filter((p) => p.workspace === 'D8')
+  const bgcProjects = bgcProjectsResult.status === 'fulfilled' ? bgcProjectsResult.value : fallbackProjects.filter((p) => p.workspace === 'BGC')
+  const eggProjects = eggProjectsResult.status === 'fulfilled' ? eggProjectsResult.value : fallbackProjects.filter((p) => p.workspace === 'EGG')
+  const projectRollup = [...d8Projects, ...bgcProjects, ...eggProjects]
 
   // Enrich newsletter entries with full HTML fetched directly from Gmail
   try {
@@ -125,8 +135,11 @@ export async function pollNotion(): Promise<void> {
   if (bgcResult.status === 'rejected') console.error('[PollCoordinator] fetchBgcTasks failed:', bgcResult.reason)
   if (jobRadarResult.status === 'rejected') console.error('[PollCoordinator] fetchJobRadar failed:', jobRadarResult.reason)
   if (newslettersResult.status === 'rejected') console.error('[PollCoordinator] fetchNewsletters failed:', newslettersResult.reason)
+  if (d8ProjectsResult.status === 'rejected') console.error('[PollCoordinator] fetchD8Projects failed:', d8ProjectsResult.reason)
+  if (bgcProjectsResult.status === 'rejected') console.error('[PollCoordinator] fetchLightProjects(BGC) failed:', bgcProjectsResult.reason)
+  if (eggProjectsResult.status === 'rejected') console.error('[PollCoordinator] fetchLightProjects(EGG) failed:', eggProjectsResult.reason)
 
-  _lastResult = { ...(_lastResult ?? DEFAULT_POLL_RESULT), d8Tasks, eggTasks, bgcTasks, jobRadar, jobRadarUpdatedAt, newsletters, newslettersUpdatedAt }
+  _lastResult = { ...(_lastResult ?? DEFAULT_POLL_RESULT), d8Tasks, eggTasks, bgcTasks, jobRadar, jobRadarUpdatedAt, newsletters, newslettersUpdatedAt, projectRollup }
 
   if (_mainWindow && !_mainWindow.isDestroyed()) {
     _mainWindow.webContents.send('poll-update', _lastResult)

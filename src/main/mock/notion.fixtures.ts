@@ -1,4 +1,4 @@
-import type { NotionTask, JobRadarEntry, NewsletterEntry } from '../../shared/ipc-types'
+import type { NotionTask, JobRadarEntry, NewsletterEntry, ProjectRollupEntry } from '../../shared/ipc-types'
 
 export const MOCK_D8_TASKS: NotionTask[] = [
   { id: 'd8-1', title: 'Finalize Phase 1 delivery doc', priority: 'P1', status: 'In Progress', url: 'https://notion.so/d8-1' },
@@ -19,6 +19,46 @@ export const MOCK_EGG_TASKS: NotionTask[] = [
 export const MOCK_BGC_TASKS: NotionTask[] = [
   { id: 'bgc-1', title: 'Finalize BGC Q3 marketing plan', priority: 'P1', status: 'In Progress', url: 'https://notion.so/bgc-1' },
   { id: 'bgc-2', title: 'BLD-001 Sensor case study', priority: 'P2', status: 'Todo', url: 'https://notion.so/bgc-2' },
+]
+
+export const MOCK_PROJECT_ROLLUP: ProjectRollupEntry[] = [
+  {
+    tier: 'rich',
+    id: 'd8-proj-1',
+    workspace: 'D8',
+    title: 'KCU Enablement',
+    status: 'In Progress',
+    nextAction: 'Confirm Track 2 session date with Scott',
+    url: 'https://notion.so/d8-proj-1',
+    lastEditedTime: new Date(Date.now() - 2 * 3600000).toISOString(),
+    healthStatus: 'At Risk',
+    healthOverride: null,
+    risks: 'Track 2 infra dependency slipping — SME availability unconfirmed for next week.',
+    nextGate: 'Track 2 Gate Review',
+    gateDate: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10),
+    dependsOn: [],
+    blocks: [],
+  },
+  {
+    tier: 'light',
+    id: 'bgc-proj-1',
+    workspace: 'BGC',
+    title: 'ODIN',
+    status: 'In Progress',
+    nextAction: 'Pick up from Gate 3 close',
+    url: 'https://notion.so/bgc-proj-1',
+    lastEditedTime: new Date(Date.now() - 26 * 3600000).toISOString(),
+  },
+  {
+    tier: 'light',
+    id: 'egg-proj-1',
+    workspace: 'EGG',
+    title: 'Egg_Mission_Control',
+    status: 'In Progress',
+    nextAction: 'Ship project rollup panel',
+    url: 'https://notion.so/egg-proj-1',
+    lastEditedTime: new Date(Date.now() - 1 * 3600000).toISOString(),
+  },
 ]
 
 export const MOCK_JOB_RADAR: JobRadarEntry[] = [

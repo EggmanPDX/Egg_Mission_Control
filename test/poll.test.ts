@@ -24,6 +24,8 @@ vi.mock('../src/main/notion.service', () => ({
   fetchD8Tasks: vi.fn(async () => []),
   fetchEggTasks: vi.fn(async () => []),
   fetchBgcTasks: vi.fn(async () => []),
+  fetchD8Projects: vi.fn(async () => []),
+  fetchLightProjects: vi.fn(async () => []),
 }))
 
 vi.mock('../src/main/notification.scheduler', () => ({
