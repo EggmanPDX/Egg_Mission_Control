@@ -122,16 +122,29 @@ async function queryDatabase(databaseId: string): Promise<NotionTask[]> {
     // since Notion's query API rejects a filter whose type doesn't match the actual property.
     const statusType = await getStatusPropertyType(client, databaseId)
 
+    // Type is a plain "select" property on all three databases (confirmed against live
+    // schemas), so no type-detection dance is needed here unlike Status above. Rows with no
+    // Type set (pre-migration legacy rows) are not excluded: Notion's does_not_equal treats
+    // an unset property as satisfying the condition, so only rows explicitly marked
+    // Type: Project are filtered out.
+    const typeFilter = {
+      property: 'Type',
+      select: { does_not_equal: 'Project' },
+    }
+
     const response = await client.databases.query({
       database_id: databaseId,
-      ...(statusType
-        ? {
-            filter: {
-              property: 'Status',
-              [statusType]: { does_not_equal: 'Done' },
-            } as Parameters<typeof client.databases.query>[0]['filter'],
-          }
-        : {}),
+      filter: statusType
+        ? ({
+            and: [
+              {
+                property: 'Status',
+                [statusType]: { does_not_equal: 'Done' },
+              },
+              typeFilter,
+            ],
+          } as Parameters<typeof client.databases.query>[0]['filter'])
+        : (typeFilter as Parameters<typeof client.databases.query>[0]['filter']),
       sorts: [
         {
           property: 'Priority',

@@ -94,14 +94,22 @@ describe('notion.service — schema detection across real-world DB shapes', () =
       expect(tasks[0].status).toBe('In Progress')
       expect(tasks[0].priority).toBe('P1')
 
-      // The filter sent to Notion must match the property's real type, or the API 404s/400s
+      // The filter sent to Notion must match the property's real type, or the API 404s/400s.
+      // It must also always exclude Type: Project rows so Project rows don't leak into the
+      // task panels, combined with the Status filter via a compound "and".
       const queryArg = mockClient.databases.query.mock.calls[0][0]
-      expect(queryArg.filter.property).toBe('Status')
-      expect(queryArg.filter[statusType]).toEqual({ does_not_equal: 'Done' })
+      expect(queryArg.filter.and).toContainEqual({
+        property: 'Status',
+        [statusType]: { does_not_equal: 'Done' },
+      })
+      expect(queryArg.filter.and).toContainEqual({
+        property: 'Type',
+        select: { does_not_equal: 'Project' },
+      })
     })
   }
 
-  it('skips the Status filter entirely when no recognizable Status property exists (no error, no crash)', async () => {
+  it('filters out Type: Project rows even when no recognizable Status property exists (no error, no crash)', async () => {
     mockClient.databases.retrieve.mockResolvedValue(schema('Name', null))
     mockClient.databases.query.mockResolvedValue({
       results: [page('Name', 'select', 'Untracked task', 'N/A', 'P2')],
@@ -111,7 +119,9 @@ describe('notion.service — schema detection across real-world DB shapes', () =
 
     expect(tasks).toHaveLength(1)
     const queryArg = mockClient.databases.query.mock.calls[0][0]
-    expect(queryArg.filter).toBeUndefined()
+    // No Status filter to combine with, so the Type filter is sent standalone rather than
+    // wrapped in an "and".
+    expect(queryArg.filter).toEqual({ property: 'Type', select: { does_not_equal: 'Project' } })
   })
 })
 

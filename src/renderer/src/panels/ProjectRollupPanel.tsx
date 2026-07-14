@@ -3,10 +3,10 @@ import { PanelHeader } from '../components/PanelHeader'
 import { SkeletonBars } from '../components/SkeletonBars'
 import type { PanelState, ProjectRollupEntry, ProjectHealth } from '../types'
 
-const HEALTH_STYLE: Record<ProjectHealth, { text: string; bg: string; dot: string }> = {
-  'On Track': { text: 'text-mc-d8', bg: 'bg-mc-pill-blue-bg', dot: 'bg-mc-d8' },
-  'At Risk': { text: 'text-[#92620a]', bg: 'bg-[#fdf1dc]', dot: 'bg-[#e0a30c]' },
-  'Off Track': { text: 'text-mc-error', bg: 'bg-mc-error bg-opacity-10', dot: 'bg-mc-error' },
+const HEALTH_STYLE: Record<ProjectHealth, { text: string; bg: string }> = {
+  'On Track': { text: 'text-mc-egg', bg: 'bg-[#e9f7e9]' },
+  'At Risk': { text: 'text-[#92620a]', bg: 'bg-[#fdf1dc]' },
+  'Off Track': { text: 'text-mc-error', bg: 'bg-mc-error bg-opacity-10' },
 }
 
 const WORKSPACE_LABEL: Record<string, string> = { D8: 'D8', BGC: 'BGC', EGG: 'Egg' }
