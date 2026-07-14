@@ -71,6 +71,36 @@ function mapPriority(priorityValue: unknown): 'P1' | 'P2' | 'P3' | null {
   return null
 }
 
+export interface DeriveHealthInput {
+  status: string
+  gateDate: string | null
+  healthOverride: string | null
+  blockingDeps: Array<{ status: string }>
+}
+
+/**
+ * Manual override always wins. Otherwise derives from Status, Gate Date, and whether any
+ * dependency this project relies on is itself not Done — in that priority order.
+ */
+export function deriveHealthStatus(input: DeriveHealthInput): 'On Track' | 'At Risk' | 'Off Track' {
+  if (input.healthOverride === 'On Track' || input.healthOverride === 'At Risk' || input.healthOverride === 'Off Track') {
+    return input.healthOverride
+  }
+
+  if (input.status === 'Blocked') return 'At Risk'
+
+  if (input.gateDate) {
+    const gate = new Date(input.gateDate)
+    if (!isNaN(gate.getTime()) && gate.getTime() < Date.now() && input.status !== 'Done') {
+      return 'Off Track'
+    }
+  }
+
+  if (input.blockingDeps.some((d) => d.status !== 'Done')) return 'At Risk'
+
+  return 'On Track'
+}
+
 async function getStatusPropertyType(
   client: NotionClient,
   databaseId: string
