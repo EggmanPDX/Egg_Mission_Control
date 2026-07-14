@@ -5,9 +5,10 @@ import { InboxPulse } from './panels/InboxPulse'
 import { JobRadarPanel } from './panels/JobRadarPanel'
 import { NewsletterPanel } from './panels/NewsletterPanel'
 import { NotionSetup } from './panels/NotionSetup'
+import { ProjectRollupPanel } from './panels/ProjectRollupPanel'
 import { NavSidebar } from './components/NavSidebar'
 import { DetailPanel } from './components/DetailPanel'
-import type { PanelState, CalendarEvent, NotionTask, InboxData, GmailInboxData, JobRadarEntry, NewsletterEntry, PollResult, SelectedItem, NavPanelId } from './types'
+import type { PanelState, CalendarEvent, NotionTask, InboxData, GmailInboxData, JobRadarEntry, NewsletterEntry, ProjectRollupEntry, PollResult, SelectedItem, NavPanelId } from './types'
 
 const loading = <T,>(): PanelState<T> => ({ status: { state: 'loading' }, data: null })
 
@@ -20,6 +21,7 @@ const PANEL_TITLES: Record<NavPanelId, string> = {
   egg: 'Egg Tasks',
   jobRadar: 'Job Radar',
   newsletters: 'Newsletters',
+  projects: 'Project Rollup',
 }
 
 function loadActivePanel(): NavPanelId {
@@ -46,6 +48,7 @@ export default function App() {
   const [jobRadarUpdatedAt, setJobRadarUpdatedAt] = useState<string | null>(null)
   const [newsletterPanel, setNewsletterPanel] = useState<PanelState<NewsletterEntry[]>>(loading())
   const [newslettersUpdatedAt, setNewslettersUpdatedAt] = useState<string | null>(null)
+  const [projectRollupPanel, setProjectRollupPanel] = useState<PanelState<ProjectRollupEntry[]>>(loading())
 
   // Guards applyPollResult against overwriting a correctly-set 'not-configured' state with a
   // stale cached poll result — isNotionConfigured() and getPollResult() race on mount and can
@@ -101,6 +104,10 @@ export default function App() {
         data: result.newsletters,
       })
       setNewslettersUpdatedAt(result.newslettersUpdatedAt)
+      setProjectRollupPanel({
+        status: result.projectRollup.length === 0 ? { state: 'empty' } : { state: 'ok' },
+        data: result.projectRollup,
+      })
     }
   }, [])
 
@@ -114,6 +121,7 @@ export default function App() {
         setBgcTaskPanel({ status: { state: 'not-configured' }, data: null })
         setJobRadarPanel({ status: { state: 'not-configured' }, data: null })
         setNewsletterPanel({ status: { state: 'not-configured' }, data: null })
+        setProjectRollupPanel({ status: { state: 'not-configured' }, data: null })
       } else {
         // getPollResult() below races with this and usually wins before the ref is set,
         // leaving Notion panels blank. Re-apply once the ref is confirmed true.
@@ -169,6 +177,7 @@ export default function App() {
     setBgcTaskPanel(loading())
     setJobRadarPanel(loading())
     setNewsletterPanel(loading())
+    setProjectRollupPanel(loading())
     // Poll coordinator will pick up Notion token and update on next cycle
   }
 
@@ -221,6 +230,8 @@ export default function App() {
         return <JobRadarPanel panel={jobRadarPanel} updatedAt={jobRadarUpdatedAt} selectedItem={selectedItem} onSelect={setSelectedItem} />
       case 'newsletters':
         return <NewsletterPanel panel={newsletterPanel} updatedAt={newslettersUpdatedAt} selectedItem={selectedItem} onSelect={setSelectedItem} />
+      case 'projects':
+        return <ProjectRollupPanel panel={projectRollupPanel} />
     }
   }
 
