@@ -4,6 +4,7 @@ import { loadConfig } from './config'
 import { handleAuthCallback, getStoredNotionToken, storeNotionToken, triggerReauth } from './auth.service'
 import { isGoogleConfigured, triggerGoogleReauth, getConnectedGoogleAccounts } from './google-auth.service'
 import { validateToken, archiveTask, completeTask, moveTask, fetchProjectContext } from './notion.service'
+import { deleteOutlookMessage } from './graph.service'
 import { startPolling, stopPolling, getLastResult, pollNotion, pollGraph } from './poll.coordinator'
 import type { PollResult, TaskWorkspace } from '../shared/ipc-types'
 import { setupAutoLaunch } from './auto-launch'
@@ -259,6 +260,19 @@ ipcMain.handle(
     try {
       const context = await fetchProjectContext(pageId)
       return { ok: true, context }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'delete-outlook-message',
+  async (_event, id: string): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      await deleteOutlookMessage(id)
+      pollGraph()  // refresh inbox in background
+      return { ok: true }
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) }
     }

@@ -14,7 +14,7 @@ if (!window.api) {
     ],
     inbox: {
       outlookUnread: 12,
-      outlookTopSubjects: [{ subject: 'RE: Q3 Plan — need your input', from: 'MJ' }, { subject: 'FW: Client feedback on Phase 1', from: 'Connor' }, { subject: 'RE: Sprint review notes', from: 'Priya' }],
+      outlookTopSubjects: [{ id: 'msg-1', subject: 'RE: Q3 Plan — need your input', from: 'MJ', webLink: '#' }, { id: 'msg-2', subject: 'FW: Client feedback on Phase 1', from: 'Connor', webLink: '#' }, { id: 'msg-3', subject: 'RE: Sprint review notes', from: 'Priya', webLink: '#' }],
       teamsUnread: 4,
       recentChats: [
         { chatId: 'chat-1', from: 'MJ', preview: 'Can you send over the updated delivery doc before standup?', receivedAt: new Date(Date.now() - 15*60000).toISOString(), webUrl: '#' },
@@ -54,17 +54,17 @@ if (!window.api) {
         email: 'gdogsjunk@gmail.com',
         unread: 7,
         topSubjects: [
-          { subject: 'Your Amazon order has shipped', from: 'Amazon' },
-          { subject: 'Reminder: dentist appointment tomorrow', from: 'Dr. Chen Office' },
-          { subject: 'Weekly digest: 12 new stories', from: 'Substack' },
+          { id: 'gm-1', subject: 'Your Amazon order has shipped', from: 'Amazon' },
+          { id: 'gm-2', subject: 'Reminder: dentist appointment tomorrow', from: 'Dr. Chen Office' },
+          { id: 'gm-3', subject: 'Weekly digest: 12 new stories', from: 'Substack' },
         ],
       },
       {
         email: 'gregg@buildgreatcourses.com',
         unread: 3,
         topSubjects: [
-          { subject: 'Invoice #4521 paid', from: 'Stripe' },
-          { subject: 'New client inquiry: onboarding program', from: 'Squarespace Forms' },
+          { id: 'gm-4', subject: 'Invoice #4521 paid', from: 'Stripe' },
+          { id: 'gm-5', subject: 'New client inquiry: onboarding program', from: 'Squarespace Forms' },
         ],
       },
     ],
@@ -85,6 +85,7 @@ if (!window.api) {
     archiveTask: () => Promise.resolve({ ok: true }),
     moveTask: () => Promise.resolve({ ok: true }),
     getProjectContext: () => Promise.resolve({ ok: true, context: '' }),
+    deleteOutlookMessage: () => Promise.resolve({ ok: true }),
   }
 }
 

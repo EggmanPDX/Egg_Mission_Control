@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { PanelHeader } from '../components/PanelHeader'
 import { SkeletonBars } from '../components/SkeletonBars'
 import type { PanelState, InboxData, GmailInboxData, ChatMessage } from '../types'
@@ -58,7 +59,7 @@ export function InboxPulse({ panel, gmailPanel, flashAuthDot, onSelect, onConnec
         )}
       </div>
 
-      <GmailBlock panel={gmailPanel} onSelect={onSelect} onConnect={onConnectGmail} />
+      <GmailBlock panel={gmailPanel} onConnect={onConnectGmail} />
     </section>
   )
 }
@@ -73,6 +74,19 @@ function formatRelative(iso: string) {
 }
 
 function InboxContent({ data, onSelect }: { data: InboxData; onSelect: (item: SelectedItem) => void }) {
+  const [expanded, setExpanded] = useState(false)
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
+
+  const visible = data.outlookTopSubjects.filter(item => !deletedIds.has(item.id))
+  const shown = expanded ? visible : visible.slice(0, 3)
+  const hiddenCount = visible.length - 3
+
+  async function handleDelete(id: string, e: React.MouseEvent) {
+    e.stopPropagation()
+    setDeletedIds(prev => new Set([...prev, id]))
+    await window.api.deleteOutlookMessage(id)
+  }
+
   return (
     <div className="flex flex-col">
       {/* Outlook block */}
@@ -82,16 +96,42 @@ function InboxContent({ data, onSelect }: { data: InboxData; onSelect: (item: Se
       </div>
 
       <div className="px-3 pb-2 flex flex-col">
-        {data.outlookTopSubjects.map((item, i) => (
-          <button
-            key={i}
-            onClick={() => onSelect({ type: 'inbox', data: item })}
-            className="w-full text-left py-1.5 border-b border-mc-canvas-border last:border-0 hover:bg-mc-canvas-alt px-1 -mx-1 rounded-mc-sm focus:outline-none"
-          >
-            <div className="text-mc-xs text-mc-ink-muted uppercase tracking-widest truncate">{item.from}</div>
-            <div className="text-mc-base text-mc-ink truncate">{item.subject}</div>
-          </button>
+        {shown.map((item, i) => (
+          <div key={i} className="flex items-center gap-1 border-b border-mc-canvas-border last:border-0">
+            <button
+              onClick={() => onSelect({ type: 'inbox', data: item })}
+              className="flex-1 text-left py-1.5 hover:bg-mc-canvas-alt px-1 -mx-1 rounded-mc-sm focus:outline-none min-w-0"
+            >
+              <div className="text-mc-xs text-mc-ink-muted uppercase tracking-widest truncate">{item.from}</div>
+              <div className="text-mc-base text-mc-ink truncate">{item.subject}</div>
+            </button>
+            <button
+              onClick={(e) => handleDelete(item.id, e)}
+              className="flex-shrink-0 p-1 text-mc-ink-faint hover:text-red-500 focus:outline-none rounded-mc-sm"
+              aria-label="Delete email"
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
         ))}
+        {!expanded && hiddenCount > 0 && (
+          <button
+            onClick={() => setExpanded(true)}
+            className="mt-1 text-mc-xs text-mc-d8 hover:underline focus:outline-none text-left"
+          >
+            Show {hiddenCount} more
+          </button>
+        )}
+        {expanded && visible.length > 3 && (
+          <button
+            onClick={() => setExpanded(false)}
+            className="mt-1 text-mc-xs text-mc-d8 hover:underline focus:outline-none text-left"
+          >
+            Show less
+          </button>
+        )}
       </div>
 
       {/* Teams chats block */}
@@ -121,13 +161,12 @@ function InboxContent({ data, onSelect }: { data: InboxData; onSelect: (item: Se
 
 function GmailBlock({
   panel,
-  onSelect,
   onConnect,
 }: {
   panel: PanelState<GmailInboxData[]>
-  onSelect: (item: SelectedItem) => void
   onConnect: () => void
 }) {
+  const [expanded, setExpanded] = useState(false)
   const { status } = panel
 
   if (status.state === 'not-configured') {
@@ -171,16 +210,32 @@ function GmailBlock({
           </div>
           {account.topSubjects.length > 0 && (
             <div className="px-3 pb-3 flex flex-col">
-              {account.topSubjects.map((item, i) => (
+              {(expanded ? account.topSubjects : account.topSubjects.slice(0, 3)).map((item, i) => (
                 <button
                   key={i}
-                  onClick={() => onSelect({ type: 'inbox', data: item })}
+                  onClick={() => window.open(`https://mail.google.com/mail/u/0/#inbox/${item.id}`, '_blank')}
                   className="w-full text-left py-1.5 border-b border-mc-canvas-border last:border-0 hover:bg-mc-canvas-alt px-1 -mx-1 rounded-mc-sm focus:outline-none"
                 >
                   <div className="text-mc-xs text-mc-ink-muted uppercase tracking-widest truncate">{item.from}</div>
                   <div className="text-mc-base text-mc-ink truncate">{item.subject}</div>
                 </button>
               ))}
+              {!expanded && account.topSubjects.length > 3 && (
+                <button
+                  onClick={() => setExpanded(true)}
+                  className="mt-1 text-mc-xs text-mc-d8 hover:underline focus:outline-none text-left"
+                >
+                  Show {account.topSubjects.length - 3} more
+                </button>
+              )}
+              {expanded && account.topSubjects.length > 3 && (
+                <button
+                  onClick={() => setExpanded(false)}
+                  className="mt-1 text-mc-xs text-mc-d8 hover:underline focus:outline-none text-left"
+                >
+                  Show less
+                </button>
+              )}
             </div>
           )}
         </div>

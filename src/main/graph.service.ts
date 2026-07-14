@@ -21,9 +21,12 @@ interface GraphCalendarEvent {
 }
 
 interface GraphMessage {
+  id: string
   subject: string
   from: { emailAddress: { name: string; address: string } }
   isRead: boolean
+  webLink: string
+  bodyPreview?: string
 }
 
 interface GraphChat {
@@ -138,14 +141,17 @@ export async function getInboxData(): Promise<InboxData> {
 
   const token = await getAccessToken()
 
-  // Fetch unread Outlook messages (top 3)
-  const messagesUrl = `${GRAPH_API_BASE}/me/messages?$filter=isRead eq false&$top=3&$select=subject,from,isRead`
+  // Fetch unread Outlook messages (top 10)
+  const messagesUrl = `${GRAPH_API_BASE}/me/messages?$filter=isRead eq false&$top=10&$select=id,subject,from,isRead,webLink,bodyPreview`
   const messagesResponse = await fetchWithBackoff(messagesUrl, token)
   const messagesData = (await messagesResponse.json()) as { value: GraphMessage[] }
 
   const outlookTopSubjects = messagesData.value.map((msg) => ({
+    id: msg.id,
     subject: msg.subject,
     from: msg.from.emailAddress.name || msg.from.emailAddress.address,
+    webLink: msg.webLink,
+    bodyPreview: msg.bodyPreview,
   }))
 
   // Count total unread
@@ -179,4 +185,9 @@ export async function getInboxData(): Promise<InboxData> {
   }
 
   return { outlookUnread, outlookTopSubjects, teamsUnread, recentChats }
+}
+
+export async function deleteOutlookMessage(id: string): Promise<void> {
+  const token = await getAccessToken()
+  await fetchWithBackoff(`${GRAPH_API_BASE}/me/messages/${id}`, token, 'DELETE')
 }

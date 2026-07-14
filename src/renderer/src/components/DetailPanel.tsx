@@ -66,6 +66,7 @@ function itemLink(item: SelectedItem): string | null {
   if (item.type === 'task') return item.data.url ?? null
   if (item.type === 'chat') return item.data.webUrl ?? null
   if (item.type === 'job') return item.data.applyUrl
+  if (item.type === 'inbox') return item.data.webLink ?? null
   return null
 }
 
@@ -74,6 +75,7 @@ function itemLinkLabel(item: SelectedItem): string {
   if (item.type === 'task') return 'Open in Notion'
   if (item.type === 'chat') return 'Open in Teams'
   if (item.type === 'job') return 'Apply'
+  if (item.type === 'inbox') return 'Open in Outlook'
   return 'Open'
 }
 
@@ -530,6 +532,9 @@ function ItemDetails({ item }: { item: SelectedItem }) {
   return (
     <div className="flex flex-col gap-2">
       <Row label="From">{item.data.from}</Row>
+      {item.data.bodyPreview && (
+        <Row label="Preview">{item.data.bodyPreview}</Row>
+      )}
     </div>
   )
 }

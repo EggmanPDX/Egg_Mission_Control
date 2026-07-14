@@ -84,7 +84,7 @@ export interface ChatMessage {
 
 export interface InboxData {
   outlookUnread: number
-  outlookTopSubjects: Array<{ subject: string; from: string }>
+  outlookTopSubjects: Array<{ id: string; subject: string; from: string; webLink: string; bodyPreview?: string }>
   teamsUnread: number | null  // null = scope unavailable
   recentChats: ChatMessage[]
 }
@@ -92,7 +92,7 @@ export interface InboxData {
 export interface GmailInboxData {
   email: string        // which connected Gmail account this is
   unread: number
-  topSubjects: Array<{ subject: string; from: string }>
+  topSubjects: Array<{ id: string; subject: string; from: string }>
 }
 
 export interface PollResult {
@@ -125,6 +125,7 @@ export interface IpcChannels {
   'complete-notion-task': (taskId: string, workspace: TaskWorkspace) => Promise<{ ok: boolean; error?: string }>
   'move-notion-task': (taskId: string, from: TaskWorkspace, to: TaskWorkspace) => Promise<{ ok: boolean; error?: string }>
   'get-project-context': (pageId: string) => Promise<{ ok: boolean; context?: string; error?: string }>
+  'delete-outlook-message': (id: string) => Promise<{ ok: boolean; error?: string }>
   // main → renderer (push events)
   'poll-update': PollResult
   'auth-state-change': { msGraphAuthed: boolean; notionConfigured: boolean; googleAuthed: boolean }

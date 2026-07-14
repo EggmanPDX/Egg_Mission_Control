@@ -18,7 +18,7 @@ import type { CalendarEvent, NotionTask, ChatMessage, TaskWorkspace, JobRadarEnt
 export type SelectedItem =
   | { type: 'calendar'; data: CalendarEvent }
   | { type: 'task'; data: NotionTask; workspace: TaskWorkspace }
-  | { type: 'inbox'; data: { from: string; subject: string } }
+  | { type: 'inbox'; data: { id?: string; from: string; subject: string; webLink?: string; bodyPreview?: string } }
   | { type: 'chat'; data: ChatMessage }
   | { type: 'job'; data: JobRadarEntry }
   | { type: 'newsletter'; data: NewsletterEntry }

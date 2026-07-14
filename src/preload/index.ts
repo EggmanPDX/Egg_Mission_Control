@@ -40,6 +40,9 @@ contextBridge.exposeInMainWorld('api', {
   getProjectContext: (pageId: string): Promise<{ ok: boolean; context?: string; error?: string }> =>
     ipcRenderer.invoke('get-project-context', pageId),
 
+  deleteOutlookMessage: (id: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('delete-outlook-message', id),
+
   onPollUpdate: (callback: (data: PollResult) => void) => {
     ipcRenderer.on('poll-update', (_event, data) => callback(data))
     return () => ipcRenderer.removeAllListeners('poll-update')
@@ -66,6 +69,7 @@ declare global {
       completeTask: (taskId: string, workspace: TaskWorkspace) => Promise<MutationResult>
       moveTask: (taskId: string, from: TaskWorkspace, to: TaskWorkspace) => Promise<MutationResult>
       getProjectContext: (pageId: string) => Promise<{ ok: boolean; context?: string; error?: string }>
+      deleteOutlookMessage: (id: string) => Promise<{ ok: boolean; error?: string }>
       onPollUpdate: (cb: (data: PollResult) => void) => () => void
       onAuthStateChange: (cb: (state: { msGraphAuthed: boolean; notionConfigured: boolean }) => void) => () => void
     }

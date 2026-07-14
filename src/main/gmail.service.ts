@@ -48,7 +48,7 @@ async function getGmailInboxDataForAccount(email: string): Promise<GmailInboxDat
 
   const [labelResponse, listResponse] = await Promise.all([
     gmailFetch(`${GMAIL_API_BASE}/labels/INBOX`, token),
-    gmailFetch(`${GMAIL_API_BASE}/messages?q=${encodeURIComponent('in:inbox is:unread')}&maxResults=3`, token),
+    gmailFetch(`${GMAIL_API_BASE}/messages?q=${encodeURIComponent('in:inbox is:unread')}&maxResults=10`, token),
   ])
 
   const label = (await labelResponse.json()) as GmailLabel
@@ -61,6 +61,7 @@ async function getGmailInboxDataForAccount(email: string): Promise<GmailInboxDat
       const metaResponse = await gmailFetch(metaUrl, token)
       const meta = (await metaResponse.json()) as GmailMessageMetadata
       return {
+        id: msg.id,
         subject: headerValue(meta.payload.headers, 'Subject') || '(no subject)',
         from: parseFromDisplayName(headerValue(meta.payload.headers, 'From')),
       }
